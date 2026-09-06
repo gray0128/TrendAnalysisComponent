@@ -5,12 +5,16 @@ import { resolveTimeWindow } from '../time'
 import { itemKey } from '../domain/identity'
 import { buildChartOption, defaultTokens, parseAggregateData } from '../domain/chartOption'
 import type { ChartSeriesInput } from '../domain/chartOption'
+import type { ThresholdMark } from '../domain/mapThreshold'
 import { fetchDeviceDataItems } from '../api/dataItems'
 import { fetchAggregateTrend } from '../api/trend'
+import { fetchEnabledThresholds } from '../api/thresholds'
+import { resolveTheme } from '../types'
 import type { PickerInput, Theme, TrendItemIdentity, TrendLoadInput } from '../types'
 import TrendQueryBar from './TrendQueryBar.vue'
 import TrendChart from './TrendChart.vue'
 import TrendPicker from './TrendPicker.vue'
+import '../styles/tokens.css'
 import '../styles/panel.css'
 
 const props = defineProps<{
@@ -26,20 +30,39 @@ const candidates = ref<TrendItemIdentity[]>([])
 const selected = ref<TrendItemIdentity[]>([])
 const showThresholds = ref(false)
 const failedKeys = ref<string[]>([])
+const loadedSeries = ref<ChartSeriesInput[]>([])
+const thresholdMarks = ref<ThresholdMark[]>([])
 const chartOption = ref<Record<string, unknown>>(emptyOption())
 const selectedOverflow = ref(false)
 let loadGeneration = 0
+let thresholdCacheKey: string | null = null
 
 const overflowNotice = computed(
   () => capSeries(props.trend.items).overflow > 0 || selectedOverflow.value,
 )
 const hasPicker = computed(() => props.picker != null)
+const resolvedTheme = computed(() =>
+  resolveTheme(props.theme, document.documentElement.dataset.theme),
+)
 
 function emptyOption() {
   return buildChartOption({
     series: [],
     showThresholds: false,
     marks: [],
+    themeTokens: defaultTokens,
+  })
+}
+
+function marksKey(items: TrendItemIdentity[]) {
+  return items.map(itemKey).join('\0')
+}
+
+function rebuildOption() {
+  chartOption.value = buildChartOption({
+    series: loadedSeries.value,
+    showThresholds: showThresholds.value,
+    marks: thresholdMarks.value,
     themeTokens: defaultTokens,
   })
 }
@@ -77,6 +100,20 @@ async function hydrate() {
   await loadTrends(generation)
 }
 
+async function ensureThresholds(items: TrendItemIdentity[], generation: number) {
+  if (!showThresholds.value) return
+  if (items.length === 0) {
+    thresholdMarks.value = []
+    return
+  }
+  const key = marksKey(items)
+  if (thresholdCacheKey === key) return
+  const marks = await fetchEnabledThresholds(items)
+  if (generation !== loadGeneration) return
+  thresholdCacheKey = key
+  thresholdMarks.value = marks
+}
+
 async function loadTrends(generation = ++loadGeneration) {
   if (generation !== loadGeneration) return
 
@@ -89,6 +126,7 @@ async function loadTrends(generation = ++loadGeneration) {
 
   if (items.length === 0) {
     failedKeys.value = []
+    loadedSeries.value = []
     chartOption.value = emptyOption()
     return
   }
@@ -121,12 +159,10 @@ async function loadTrends(generation = ++loadGeneration) {
   }
 
   failedKeys.value = failed
-  chartOption.value = buildChartOption({
-    series,
-    showThresholds: false,
-    marks: [],
-    themeTokens: defaultTokens,
-  })
+  loadedSeries.value = series
+  await ensureThresholds(items, generation)
+  if (generation !== loadGeneration) return
+  rebuildOption()
 }
 
 function onWindowChange(next: { startTimeMs: number; endTimeMs: number }) {
@@ -143,6 +179,13 @@ function onUpdateSelected(items: TrendItemIdentity[]) {
   void loadTrends()
 }
 
+watch(showThresholds, async (on) => {
+  if (on) {
+    await ensureThresholds(capSeries(selected.value).items, loadGeneration)
+  }
+  rebuildOption()
+})
+
 watch(
   () => [props.trend, props.picker] as const,
   () => {
@@ -153,7 +196,7 @@ watch(
 </script>
 
 <template>
-  <div class="dit-panel" :data-theme="theme">
+  <div class="dit-root dit-panel" :data-theme="resolvedTheme">
     <div class="dit-query">
       <TrendQueryBar
         :start-time-ms="startTimeMs"

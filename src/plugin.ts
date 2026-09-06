@@ -7,3 +7,5 @@ export function install(
 ): void {
   setTrendRequest(options.request)
 }
+
+export default { install }

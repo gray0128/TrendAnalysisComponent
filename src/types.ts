@@ -1,6 +1,16 @@
 export type Theme = 'dark' | 'light' | 'remote-blue'
 
 export const THEMES: readonly Theme[] = ['dark', 'light', 'remote-blue']
+
+export function resolveTheme(
+  prop?: string | null,
+  htmlDataset?: string | null,
+): Theme {
+  if (THEMES.includes(prop as Theme)) return prop as Theme
+  if (THEMES.includes(htmlDataset as Theme)) return htmlDataset as Theme
+  return 'remote-blue'
+}
+
 export const MAX_TREND_SERIES = 8
 export const DEFAULT_WINDOW_MS = 2 * 60 * 60 * 1000
 export const AGGREGATE_FUNC = 2
