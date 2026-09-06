@@ -174,4 +174,45 @@ describe('TrendPanel', () => {
     await flushPromises()
     expect(seriesData(wrapper)).toEqual([[[1, 1]]])
   })
+
+  it('clears threshold cache on empty selection so the same items fetch again', async () => {
+    const list = [item(0)]
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: list },
+        picker: { type: 'items', items: list },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.find('.dit-threshold input').setValue(true)
+    await flushPromises()
+    expect(fetchEnabledThresholds).toHaveBeenCalledTimes(1)
+
+    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', [])
+    await flushPromises()
+    expect(fetchEnabledThresholds).toHaveBeenCalledTimes(1)
+
+    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', list)
+    await flushPromises()
+    expect(fetchEnabledThresholds).toHaveBeenCalledTimes(2)
+  })
+
+  it('rebuilds the trend option when fetchEnabledThresholds rejects', async () => {
+    vi.mocked(fetchAggregateTrend).mockResolvedValue({
+      code: 200,
+      data: { timestamps: [1_000_000], values: [[10]] },
+    })
+    vi.mocked(fetchEnabledThresholds).mockRejectedValue(new Error('threshold fail'))
+
+    const wrapper = mount(TrendPanel, {
+      props: { trend: { items: [item(0)] } },
+    })
+    await flushPromises()
+    expect(seriesData(wrapper)).toEqual([[[1, 10]]])
+
+    await wrapper.find('.dit-threshold input').setValue(true)
+    await flushPromises()
+    expect(seriesData(wrapper)).toEqual([[[1, 10]]])
+  })
 })

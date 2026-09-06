@@ -6,12 +6,33 @@ export interface ThemeTokens {
   danger: string
   warning: string
   notice: string
+  series: string[]
 }
 
 export const defaultTokens: ThemeTokens = {
   danger: '#ff6b6b',
   warning: '#ff8a2b',
   notice: '#4d9eff',
+  series: ['#32b4dd', '#67d5ae', '#249fe0', '#ffbd61'],
+}
+
+const SERIES_VARS = ['--chart-series-1', '--chart-series-2', '--chart-series-3', '--chart-series-4'] as const
+
+export function readThemeTokens(el: Element | null | undefined): ThemeTokens {
+  if (!el) return defaultTokens
+  const style = getComputedStyle(el)
+  const css = (name: string) => style.getPropertyValue(name).trim()
+  const danger = css('--danger')
+  const warning = css('--warning')
+  const notice = css('--notice')
+  const series = SERIES_VARS.map(css)
+  if (!danger && !warning && !notice && series.every(c => !c)) return defaultTokens
+  return {
+    danger: danger || defaultTokens.danger,
+    warning: warning || defaultTokens.warning,
+    notice: notice || defaultTokens.notice,
+    series: series.map((c, i) => c || defaultTokens.series[i]),
+  }
 }
 
 export interface ChartSeriesInput {
@@ -52,6 +73,7 @@ export function buildChartOption(input: BuildChartOptionInput) {
   const { series, showThresholds, marks, themeTokens } = input
 
   return {
+    color: themeTokens.series,
     xAxis: { type: 'time' },
     yAxis: { type: 'value' },
     legend: { data: series.map(s => seriesName(s.item)) },

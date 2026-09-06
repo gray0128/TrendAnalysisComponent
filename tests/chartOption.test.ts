@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   buildChartOption,
   defaultTokens,
   parseAggregateData,
+  readThemeTokens,
 } from '../src/domain/chartOption'
 import type { ThresholdMark } from '../src/domain/mapThreshold'
 import type { TrendItemIdentity } from '../src/types'
@@ -71,5 +72,37 @@ describe('buildChartOption', () => {
       defaultTokens.notice,
     ])
     expect(markLine.data.map(d => d.yAxis)).toEqual([100, 80, 60])
+    expect(option.color).toEqual(defaultTokens.series)
+  })
+})
+
+describe('readThemeTokens', () => {
+  it('falls back to defaultTokens when the element is missing or vars are empty', () => {
+    expect(readThemeTokens(null)).toBe(defaultTokens)
+    const el = document.createElement('div')
+    el.className = 'dit-root'
+    expect(readThemeTokens(el)).toBe(defaultTokens)
+  })
+
+  it('reads danger, warning, notice and series from computed CSS vars', () => {
+    const el = document.createElement('div')
+    el.className = 'dit-root'
+    vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+      getPropertyValue: (name: string) => ({
+        '--danger': ' #aa0000 ',
+        '--warning': '#bb8800',
+        '--notice': '#0033aa',
+        '--chart-series-1': '#111111',
+        '--chart-series-2': '#222222',
+        '--chart-series-3': '#333333',
+        '--chart-series-4': '#444444',
+      }[name] ?? ''),
+    } as CSSStyleDeclaration)
+    expect(readThemeTokens(el)).toEqual({
+      danger: '#aa0000',
+      warning: '#bb8800',
+      notice: '#0033aa',
+      series: ['#111111', '#222222', '#333333', '#444444'],
+    })
   })
 })

@@ -13,13 +13,13 @@ let chart: echarts.ECharts | null = null
 onMounted(() => {
   if (!el.value) return
   chart = echarts.init(el.value)
-  chart.setOption(props.option)
+  chart.setOption(props.option, { notMerge: true })
 })
 
 watch(
   () => props.option,
   option => {
-    chart?.setOption(option)
+    chart?.setOption(option, { notMerge: true })
   },
   { deep: true },
 )

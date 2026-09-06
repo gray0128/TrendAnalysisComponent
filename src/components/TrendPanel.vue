@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { capSeries } from '../limits'
 import { resolveTimeWindow } from '../time'
 import { itemKey } from '../domain/identity'
-import { buildChartOption, defaultTokens, parseAggregateData } from '../domain/chartOption'
+import { buildChartOption, parseAggregateData, readThemeTokens } from '../domain/chartOption'
 import type { ChartSeriesInput } from '../domain/chartOption'
 import type { ThresholdMark } from '../domain/mapThreshold'
 import { fetchDeviceDataItems } from '../api/dataItems'
@@ -32,7 +32,7 @@ const showThresholds = ref(false)
 const failedKeys = ref<string[]>([])
 const loadedSeries = ref<ChartSeriesInput[]>([])
 const thresholdMarks = ref<ThresholdMark[]>([])
-const chartOption = ref<Record<string, unknown>>(emptyOption())
+const rootEl = ref<HTMLElement | null>(null)
 const selectedOverflow = ref(false)
 let loadGeneration = 0
 let thresholdCacheKey: string | null = null
@@ -50,9 +50,11 @@ function emptyOption() {
     series: [],
     showThresholds: false,
     marks: [],
-    themeTokens: defaultTokens,
+    themeTokens: readThemeTokens(rootEl.value),
   })
 }
+
+const chartOption = ref<Record<string, unknown>>(emptyOption())
 
 function marksKey(items: TrendItemIdentity[]) {
   return items.map(itemKey).join('\0')
@@ -63,7 +65,7 @@ function rebuildOption() {
     series: loadedSeries.value,
     showThresholds: showThresholds.value,
     marks: thresholdMarks.value,
-    themeTokens: defaultTokens,
+    themeTokens: readThemeTokens(rootEl.value),
   })
 }
 
@@ -101,17 +103,22 @@ async function hydrate() {
 }
 
 async function ensureThresholds(items: TrendItemIdentity[], generation: number) {
-  if (!showThresholds.value) return
   if (items.length === 0) {
     thresholdMarks.value = []
+    thresholdCacheKey = null
     return
   }
+  if (!showThresholds.value) return
   const key = marksKey(items)
   if (thresholdCacheKey === key) return
-  const marks = await fetchEnabledThresholds(items)
-  if (generation !== loadGeneration) return
-  thresholdCacheKey = key
-  thresholdMarks.value = marks
+  try {
+    const marks = await fetchEnabledThresholds(items)
+    if (generation !== loadGeneration) return
+    thresholdCacheKey = key
+    thresholdMarks.value = marks
+  } catch {
+    // do not cache a failed fetch
+  }
 }
 
 async function loadTrends(generation = ++loadGeneration) {
@@ -127,7 +134,9 @@ async function loadTrends(generation = ++loadGeneration) {
   if (items.length === 0) {
     failedKeys.value = []
     loadedSeries.value = []
-    chartOption.value = emptyOption()
+    await ensureThresholds([], generation)
+    if (generation !== loadGeneration) return
+    rebuildOption()
     return
   }
 
@@ -196,7 +205,7 @@ watch(
 </script>
 
 <template>
-  <div class="dit-root dit-panel" :data-theme="resolvedTheme">
+  <div ref="rootEl" class="dit-root dit-panel" :data-theme="resolvedTheme">
     <div class="dit-query">
       <TrendQueryBar
         :start-time-ms="startTimeMs"
