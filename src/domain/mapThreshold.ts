@@ -1,0 +1,72 @@
+import { itemKey } from './identity'
+import type { TrendItemIdentity } from '../types'
+
+export interface ThresholdMark {
+  itemKey: string
+  level: '危险' | '警告' | '注意'
+  y: number
+  label: string
+}
+
+function parseNumericValue(val: unknown): number | null {
+  if (val == null || val === '') return null
+  if (typeof val === 'number' && Number.isFinite(val)) return val
+  const str = String(val).trim()
+  if (!str || /^[-—–]+$/.test(str)) return null
+  const match = str.match(/^[-+]?\d+(\.\d+)?/)
+  if (match) {
+    const num = Number(match[0])
+    return Number.isFinite(num) ? num : null
+  }
+  const directNum = Number(str)
+  return Number.isFinite(directNum) ? directNum : null
+}
+
+function isEnabled(row: any): boolean {
+  return row?.enabled === '1' || row?.enabled === 1
+}
+
+function levelOf(row: any): ThresholdMark['level'] {
+  const severity = Number(row?.severity)
+  if (severity === 3) return '危险'
+  if (severity === 2) return '警告'
+  return '注意'
+}
+
+function isTwoValue(row: any): boolean {
+  const rawCond = String(row?.ruleCondition ?? '')
+  if (rawCond === '07' || rawCond === '08' || rawCond === '09' || rawCond === '10') {
+    return true
+  }
+  const condText = String(
+    row?.condition ?? row?.message ?? row?.ruleDesc ?? row?.title ?? '',
+  )
+  return condText.includes('介于') || condText.includes('上下限')
+}
+
+function pushMark(
+  marks: ThresholdMark[],
+  key: string,
+  level: ThresholdMark['level'],
+  rawY: unknown,
+): void {
+  const y = parseNumericValue(rawY)
+  if (y == null) return
+  marks.push({ itemKey: key, level, y, label: level })
+}
+
+export function mapThresholdRows(rows: any[] | undefined, item: TrendItemIdentity): ThresholdMark[] {
+  const key = itemKey(item)
+  const marks: ThresholdMark[] = []
+  for (const row of rows ?? []) {
+    if (!isEnabled(row)) continue
+    const level = levelOf(row)
+    if (isTwoValue(row)) {
+      pushMark(marks, key, level, row.refValue1)
+      pushMark(marks, key, level, row.refValue2)
+    } else {
+      pushMark(marks, key, level, row.refValue1)
+    }
+  }
+  return marks
+}
