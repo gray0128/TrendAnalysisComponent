@@ -48,4 +48,22 @@ describe('mapThresholdRows', () => {
     expect(marks.map(m => m.y)).toEqual([40, 80])
     expect(marks.every(m => m.level === '危险')).toBe(true)
   })
+
+  it('emits two marks when message has 介于 even if condition is non-matching text', () => {
+    const marks = mapThresholdRows(
+      [
+        {
+          enabled: '1',
+          severity: 2,
+          condition: '大于',
+          message: '介于上下限',
+          refValue1: 10,
+          refValue2: 60,
+        },
+      ],
+      item,
+    )
+    expect(marks).toHaveLength(2)
+    expect(marks.map(m => m.y)).toEqual([10, 60])
+  })
 })

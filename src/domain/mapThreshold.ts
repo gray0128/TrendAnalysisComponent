@@ -38,10 +38,11 @@ function isTwoValue(row: any): boolean {
   if (rawCond === '07' || rawCond === '08' || rawCond === '09' || rawCond === '10') {
     return true
   }
-  const condText = String(
-    row?.condition ?? row?.message ?? row?.ruleDesc ?? row?.title ?? '',
-  )
-  return condText.includes('介于') || condText.includes('上下限')
+  const texts = [row?.condition, row?.message, row?.ruleDesc, row?.title]
+  return texts.some(t => {
+    const s = String(t ?? '')
+    return s.includes('介于') || s.includes('上下限')
+  })
 }
 
 function pushMark(
