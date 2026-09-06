@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "declaration": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["vitest/globals"]
+  },
+  "include": ["src", "tests"]
+}
