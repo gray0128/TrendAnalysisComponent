@@ -4,3 +4,4 @@ export {
 export type {
   Theme, TrendItemIdentity, TrendLoadInput, PickerInput, TrendRequest, PluginOptions,
 } from './types'
+export { default as TrendPanel } from './components/TrendPanel.vue'

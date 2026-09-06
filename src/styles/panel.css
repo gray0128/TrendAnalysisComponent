@@ -32,3 +32,28 @@
 .trend-picker__notice {
   margin: 4px 0 0;
 }
+
+.dit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dit-query {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.dit-threshold {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dit-notice,
+.dit-failed {
+  margin: 0;
+}
