@@ -23,6 +23,24 @@ import { fetchDeviceDataItems } from '../src/api/dataItems'
 import { fetchAggregateTrend } from '../src/api/trend'
 import { fetchEnabledThresholds } from '../src/api/thresholds'
 import TrendPanel from '../src/components/TrendPanel.vue'
+import TrendChart from '../src/components/TrendChart.vue'
+import TrendPicker from '../src/components/TrendPicker.vue'
+import { MAX_TREND_SERIES } from '../src/types'
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(r => {
+    resolve = r
+  })
+  return { promise, resolve }
+}
+
+function seriesData(wrapper: ReturnType<typeof mount>) {
+  const option = wrapper.findComponent(TrendChart).props('option') as {
+    series: { data: [number, number | null][] }[]
+  }
+  return option.series.map(s => s.data)
+}
 
 function item(i: number): TrendItemIdentity {
   return {
@@ -92,5 +110,68 @@ describe('TrendPanel', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('阈值线')
     expect(fetchEnabledThresholds).not.toHaveBeenCalled()
+  })
+
+  it('fetches at most 8 series when 9 trend.items are given without a picker', async () => {
+    const items = Array.from({ length: 9 }, (_, i) => item(i))
+    const wrapper = mount(TrendPanel, {
+      props: { trend: { items } },
+    })
+    await flushPromises()
+
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(MAX_TREND_SERIES)
+    expect(wrapper.text()).toContain('最多加载 8 个数据项，其余未加载')
+  })
+
+  it('fetches at most 8 series when selected somehow exceeds the cap', async () => {
+    const nine = Array.from({ length: 9 }, (_, i) => item(i))
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: nine.slice(0, 8) },
+        picker: { type: 'items', items: nine },
+      },
+    })
+    await flushPromises()
+    vi.mocked(fetchAggregateTrend).mockClear()
+
+    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', nine)
+    await flushPromises()
+
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(MAX_TREND_SERIES)
+    const checked = wrapper
+      .findAll('.dit-picker input[type="checkbox"]')
+      .filter(box => (box.element as HTMLInputElement).checked)
+    expect(checked).toHaveLength(MAX_TREND_SERIES)
+    expect(wrapper.text()).toContain('最多加载 8 个数据项，其余未加载')
+  })
+
+  it('ignores a stale trend response after a newer query', async () => {
+    const first = deferred<unknown>()
+    vi.mocked(fetchAggregateTrend)
+      .mockImplementationOnce(() => first.promise)
+      .mockResolvedValue({
+        code: 200,
+        data: { timestamps: [1_000_000], values: [[1]] },
+      })
+
+    const wrapper = mount(TrendPanel, {
+      props: { trend: { items: [item(0)] } },
+    })
+    await flushPromises()
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(1)
+
+    const queryBtn = wrapper.findAll('button').find(b => b.text() === '查询')
+    expect(queryBtn).toBeTruthy()
+    await queryBtn!.trigger('click')
+    await flushPromises()
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(2)
+    expect(seriesData(wrapper)).toEqual([[[1, 1]]])
+
+    first.resolve({
+      code: 200,
+      data: { timestamps: [2_000_000], values: [[99]] },
+    })
+    await flushPromises()
+    expect(seriesData(wrapper)).toEqual([[[1, 1]]])
   })
 })

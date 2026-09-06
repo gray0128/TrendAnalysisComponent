@@ -27,8 +27,12 @@ const selected = ref<TrendItemIdentity[]>([])
 const showThresholds = ref(false)
 const failedKeys = ref<string[]>([])
 const chartOption = ref<Record<string, unknown>>(emptyOption())
+const selectedOverflow = ref(false)
+let loadGeneration = 0
 
-const overflowNotice = computed(() => capSeries(props.trend.items).overflow > 0)
+const overflowNotice = computed(
+  () => capSeries(props.trend.items).overflow > 0 || selectedOverflow.value,
+)
 const hasPicker = computed(() => props.picker != null)
 
 function emptyOption() {
@@ -46,6 +50,7 @@ function matchSelected(cappedItems: TrendItemIdentity[]) {
 }
 
 async function hydrate() {
+  const generation = ++loadGeneration
   const capped = capSeries(props.trend.items)
   const window = resolveTimeWindow(props.trend.startTimeMs, props.trend.endTimeMs)
   startTimeMs.value = window.startTimeMs
@@ -53,34 +58,43 @@ async function hydrate() {
 
   const picker = props.picker
   if (picker == null) {
+    if (generation !== loadGeneration) return
     candidates.value = []
     selected.value = capped.items
-    await loadTrends()
+    await loadTrends(generation)
     return
   }
 
+  let nextCandidates: TrendItemIdentity[]
   if (picker.type === 'device') {
-    candidates.value = await fetchDeviceDataItems(picker.deviceCode)
+    nextCandidates = await fetchDeviceDataItems(picker.deviceCode)
   } else {
-    candidates.value = picker.items
+    nextCandidates = picker.items
   }
+  if (generation !== loadGeneration) return
+  candidates.value = nextCandidates
   selected.value = matchSelected(capped.items)
-  await loadTrends()
+  await loadTrends(generation)
 }
 
-async function loadTrends() {
-  failedKeys.value = []
-  const items = selected.value
+async function loadTrends(generation = ++loadGeneration) {
+  if (generation !== loadGeneration) return
+
+  const capped = capSeries(selected.value)
+  selectedOverflow.value = capped.overflow > 0
+  const items = capped.items
+  if (capped.overflow > 0) {
+    selected.value = items
+  }
+
   if (items.length === 0) {
+    failedKeys.value = []
     chartOption.value = emptyOption()
     return
   }
 
   const start = startTimeMs.value
   const end = endTimeMs.value
-  const failed: string[] = []
-  const series: ChartSeriesInput[] = []
-
   const results = await Promise.all(items.map(async (item) => {
     try {
       const payload = await fetchAggregateTrend(item, start, end)
@@ -90,6 +104,10 @@ async function loadTrends() {
     }
   }))
 
+  if (generation !== loadGeneration) return
+
+  const failed: string[] = []
+  const series: ChartSeriesInput[] = []
   for (const result of results) {
     if (result.ok) {
       series.push({
