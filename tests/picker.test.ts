@@ -24,10 +24,8 @@ describe('TrendPicker', () => {
     expect(boxes).toHaveLength(9)
     await boxes[8].setValue(true)
 
-    const emitted = wrapper.emitted('update:selected') ?? []
-    for (const [payload] of emitted) {
-      expect((payload as TrendItemIdentity[]).length).toBeLessThanOrEqual(8)
-    }
+    expect(wrapper.emitted('update:selected')).toBeFalsy()
+    expect((boxes[8].element as HTMLInputElement).checked).toBe(false)
     expect(wrapper.text()).toContain('最多选择 8 个数据项')
   })
 })

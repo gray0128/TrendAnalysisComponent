@@ -31,6 +31,7 @@ function onChange(item: TrendItemIdentity, event: Event) {
   if (checked) {
     if (isSelected(item)) return
     if (props.selected.length >= MAX_TREND_SERIES) {
+      ;(event.target as HTMLInputElement).checked = false
       capNotice.value = true
       return
     }
