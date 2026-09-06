@@ -103,6 +103,57 @@ describe('TrendPanel', () => {
     )
   })
 
+  it('still fetches the trend item when device picker kpiIds differ', async () => {
+    const trendItem: TrendItemIdentity = {
+      deviceCode: 'DEV',
+      pointId: '01',
+      kpiId: '12345',
+      displayName: '速度',
+    }
+    vi.mocked(fetchDeviceDataItems).mockResolvedValue([
+      { deviceCode: 'DEV', pointId: '01', kpiId: 'VEL_RMS', displayName: '速度有效值' },
+    ])
+
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: [trendItem] },
+        picker: { type: 'device', deviceCode: 'DEV' },
+      },
+    })
+    await flushPromises()
+
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(1)
+    expect(fetchAggregateTrend).toHaveBeenCalledWith(
+      trendItem,
+      expect.any(Number),
+      expect.any(Number),
+    )
+    const boxes = wrapper.findAll('.dit-picker input[type="checkbox"]')
+    expect(boxes).toHaveLength(1)
+    expect((boxes[0].element as HTMLInputElement).checked).toBe(false)
+  })
+
+  it('still fetches the trend item when fetchDeviceDataItems rejects', async () => {
+    const trendItem = item(0)
+    vi.mocked(fetchDeviceDataItems).mockRejectedValue(new Error('picker fail'))
+
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: [trendItem] },
+        picker: { type: 'device', deviceCode: 'DEV' },
+      },
+    })
+    await flushPromises()
+
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(1)
+    expect(fetchAggregateTrend).toHaveBeenCalledWith(
+      trendItem,
+      expect.any(Number),
+      expect.any(Number),
+    )
+    expect(wrapper.text()).toContain('数据项列表加载失败')
+  })
+
   it('does not request thresholds by default', async () => {
     const wrapper = mount(TrendPanel, {
       props: { trend: { items: [item(0)] } },

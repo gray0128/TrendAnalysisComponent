@@ -37,6 +37,7 @@ const selectedOverflow = ref(false)
 let loadGeneration = 0
 let thresholdCacheKey: string | null = null
 
+const pickerNotice = ref('')
 const overflowNotice = computed(
   () => capSeries(props.trend.items).overflow > 0 || selectedOverflow.value,
 )
@@ -69,9 +70,15 @@ function rebuildOption() {
   })
 }
 
-function matchSelected(cappedItems: TrendItemIdentity[]) {
-  const keys = new Set(cappedItems.map(itemKey))
-  return candidates.value.filter(item => keys.has(itemKey(item)))
+function resolveSelected(
+  nextCandidates: TrendItemIdentity[],
+  cappedItems: TrendItemIdentity[],
+) {
+  const inputKeys = new Set(cappedItems.map(itemKey))
+  const matched = nextCandidates.filter(item => inputKeys.has(itemKey(item)))
+  const candidateKeys = new Set(nextCandidates.map(itemKey))
+  const unmatched = cappedItems.filter(item => !candidateKeys.has(itemKey(item)))
+  return [...matched, ...unmatched]
 }
 
 async function hydrate() {
@@ -81,24 +88,25 @@ async function hydrate() {
   startTimeMs.value = window.startTimeMs
   endTimeMs.value = window.endTimeMs
 
+  let nextCandidates: TrendItemIdentity[] = []
+  let nextPickerNotice = ''
   const picker = props.picker
-  if (picker == null) {
-    if (generation !== loadGeneration) return
-    candidates.value = []
-    selected.value = capped.items
-    await loadTrends(generation)
-    return
-  }
-
-  let nextCandidates: TrendItemIdentity[]
-  if (picker.type === 'device') {
-    nextCandidates = await fetchDeviceDataItems(picker.deviceCode)
-  } else {
-    nextCandidates = picker.items
+  if (picker != null) {
+    if (picker.type === 'device') {
+      try {
+        nextCandidates = await fetchDeviceDataItems(picker.deviceCode)
+      } catch {
+        nextCandidates = []
+        nextPickerNotice = '数据项列表加载失败'
+      }
+    } else {
+      nextCandidates = picker.items
+    }
   }
   if (generation !== loadGeneration) return
   candidates.value = nextCandidates
-  selected.value = matchSelected(capped.items)
+  pickerNotice.value = nextPickerNotice
+  selected.value = resolveSelected(nextCandidates, capped.items)
   await loadTrends(generation)
 }
 
@@ -219,6 +227,7 @@ watch(
       </label>
     </div>
     <p v-if="overflowNotice" class="dit-notice">最多加载 8 个数据项，其余未加载</p>
+    <p v-if="pickerNotice" class="dit-notice">{{ pickerNotice }}</p>
     <p v-if="failedKeys.length" class="dit-failed">
       {{ failedKeys.join('、') }} 加载失败
     </p>
