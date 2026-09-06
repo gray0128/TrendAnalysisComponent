@@ -13,6 +13,7 @@ export default defineConfig({
       entry: fileURLToPath(new URL('./src/index.ts', import.meta.url)),
       name: 'DataItemTrend',
       fileName: 'index',
+      cssFileName: 'style',
       formats: ['es', 'cjs'],
     },
     rollupOptions: {

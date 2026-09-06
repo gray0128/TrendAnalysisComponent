@@ -1,4 +1,5 @@
 import './styles/tokens.css'
+import './styles/panel.css'
 
 export {
   THEMES, MAX_TREND_SERIES, DEFAULT_WINDOW_MS, AGGREGATE_FUNC, RESERVE_DECIMAL,
