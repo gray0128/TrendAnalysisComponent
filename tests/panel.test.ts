@@ -169,23 +169,23 @@ describe('TrendPanel', () => {
     expect(fetchEnabledThresholds).not.toHaveBeenCalled()
   })
 
-  it('fetches at most 8 series when 9 trend.items are given without a picker', async () => {
-    const items = Array.from({ length: 9 }, (_, i) => item(i))
+  it('fetches at most MAX_TREND_SERIES when extra trend.items are given without a picker', async () => {
+    const items = Array.from({ length: MAX_TREND_SERIES + 1 }, (_, i) => item(i))
     const wrapper = mount(TrendPanel, {
       props: { trend: { items } },
     })
     await flushPromises()
 
     expect(fetchAggregateTrend).toHaveBeenCalledTimes(MAX_TREND_SERIES)
-    expect(wrapper.text()).toContain('最多加载 8 个数据项，其余未加载')
+    expect(wrapper.text()).toContain(`最多加载 ${MAX_TREND_SERIES} 个数据项，其余未加载`)
   })
 
-  it('fetches at most 8 series when selected somehow exceeds the cap', async () => {
-    const nine = Array.from({ length: 9 }, (_, i) => item(i))
+  it('fetches at most MAX_TREND_SERIES when selected somehow exceeds the cap', async () => {
+    const extra = Array.from({ length: MAX_TREND_SERIES + 1 }, (_, i) => item(i))
     const wrapper = mount(TrendPanel, {
       props: {
-        trend: { items: nine.slice(0, 8) },
-        picker: { type: 'items', items: nine },
+        trend: { items: extra.slice(0, MAX_TREND_SERIES) },
+        picker: { type: 'items', items: extra },
       },
     })
     await flushPromises()
@@ -193,7 +193,7 @@ describe('TrendPanel', () => {
     expect(wrapper.find('.trend-picker__filters').exists()).toBe(false)
     vi.mocked(fetchAggregateTrend).mockClear()
 
-    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', nine)
+    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', extra)
     await flushPromises()
 
     expect(fetchAggregateTrend).toHaveBeenCalledTimes(MAX_TREND_SERIES)
@@ -201,7 +201,51 @@ describe('TrendPanel', () => {
       .findAll('.dit-picker input[type="checkbox"]')
       .filter(box => (box.element as HTMLInputElement).checked)
     expect(checked).toHaveLength(MAX_TREND_SERIES)
-    expect(wrapper.text()).toContain('最多加载 8 个数据项，其余未加载')
+    expect(wrapper.text()).toContain(`最多加载 ${MAX_TREND_SERIES} 个数据项，其余未加载`)
+  })
+
+  it('replaces selected series when a device-picker display-name aggregate is clicked', async () => {
+    const list: TrendItemIdentity[] = [
+      { deviceCode: 'DEV', pointId: '01', kpiId: 'RMS', displayName: '速度RMS' },
+      { deviceCode: 'DEV', pointId: '02', kpiId: 'VEL', displayName: '速度RMS' },
+      { deviceCode: 'DEV', pointId: '03', kpiId: 'TEMP', displayName: '温度' },
+    ]
+    vi.mocked(fetchDeviceDataItems).mockResolvedValue(list)
+
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: [list[2]!] },
+        picker: { type: 'device', deviceCode: 'DEV' },
+      },
+    })
+    await flushPromises()
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(1)
+    expect(fetchAggregateTrend).toHaveBeenCalledWith(
+      list[2],
+      expect.any(Number),
+      expect.any(Number),
+    )
+    vi.mocked(fetchAggregateTrend).mockClear()
+
+    await wrapper.findAll('.trend-picker__aggregate')[0]!.trigger('click')
+    await flushPromises()
+
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(2)
+    expect(fetchAggregateTrend).toHaveBeenCalledWith(
+      list[0],
+      expect.any(Number),
+      expect.any(Number),
+    )
+    expect(fetchAggregateTrend).toHaveBeenCalledWith(
+      list[1],
+      expect.any(Number),
+      expect.any(Number),
+    )
+    const checked = wrapper
+      .findAll('.dit-picker input[type="checkbox"]')
+      .filter(box => (box.element as HTMLInputElement).checked)
+    expect(checked).toHaveLength(2)
+    expect((wrapper.findAll('.dit-picker input[type="checkbox"]')[2]!.element as HTMLInputElement).checked).toBe(false)
   })
 
   it('ignores a stale trend response after a newer query', async () => {

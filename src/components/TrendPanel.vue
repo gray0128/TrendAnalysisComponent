@@ -9,7 +9,7 @@ import type { ThresholdMark } from '../domain/mapThreshold'
 import { fetchDeviceDataItems } from '../api/dataItems'
 import { fetchAggregateTrend } from '../api/trend'
 import { fetchEnabledThresholds } from '../api/thresholds'
-import { resolveTheme } from '../types'
+import { MAX_TREND_SERIES, resolveTheme } from '../types'
 import type { PickerInput, Theme, TrendItemIdentity, TrendLoadInput } from '../types'
 import {
   buildMultiDiagnoseUrl,
@@ -265,7 +265,7 @@ watch(resolvedTheme, () => {
         阈值线
       </label>
     </div>
-    <p v-if="overflowNotice" class="dit-notice">最多加载 8 个数据项，其余未加载</p>
+    <p v-if="overflowNotice" class="dit-notice">最多加载 {{ MAX_TREND_SERIES }} 个数据项，其余未加载</p>
     <p v-if="pickerNotice" class="dit-notice">{{ pickerNotice }}</p>
     <p v-if="diagnoseNotice" class="dit-notice">{{ diagnoseNotice }}</p>
     <p v-if="failedKeys.length" class="dit-failed">

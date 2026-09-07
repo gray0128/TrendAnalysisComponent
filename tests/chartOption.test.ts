@@ -6,6 +6,7 @@ import {
   readThemeTokens,
 } from '../src/domain/chartOption'
 import type { ThresholdMark } from '../src/domain/mapThreshold'
+import { MAX_TREND_SERIES } from '../src/types'
 import type { TrendItemIdentity } from '../src/types'
 
 const item: TrendItemIdentity = {
@@ -111,6 +112,8 @@ describe('buildChartOption', () => {
     expect(markLine.data.map(d => d.yAxis)).toEqual([100, 80, 60])
     expect(markLine.data[0]!.hover).toBe('DEV01·01·RMS<br/>条件：大于 100')
     expect(option.color).toEqual(defaultTokens.series)
+    expect(option.color).toHaveLength(MAX_TREND_SERIES)
+    expect(new Set(option.color).size).toBe(MAX_TREND_SERIES)
   })
 
   it('does not pin y-axis to 0 and expands only for visible marks outside data', () => {
@@ -132,6 +135,24 @@ describe('buildChartOption', () => {
     })
     expect(withLowMark.yAxis.min).toBe(10)
     expect(withLowMark.yAxis.max).toBeUndefined()
+  })
+
+  it('puts the point timestamp on the first tooltip line', () => {
+    const ms = new Date(2026, 7, 29, 12, 34, 56).getTime()
+    const option = buildChartOption({
+      series: [{ item, times: [ms], values: [1.214] }],
+      showThresholds: false,
+      marks: [],
+      themeTokens: defaultTokens,
+    })
+    const html = option.tooltip.formatter([
+      {
+        marker: '●',
+        seriesName: 'DEV01·01·RMS',
+        value: [ms, 1.214],
+      },
+    ])
+    expect(html).toBe('2026-08-29 12:34:56<br/>●DEV01·01·RMS: 1.214')
   })
 
   it('names series as deviceCode·pointName·displayName', () => {
@@ -175,6 +196,12 @@ describe('readThemeTokens', () => {
         '--chart-series-2': '#222222',
         '--chart-series-3': '#333333',
         '--chart-series-4': '#444444',
+        '--chart-series-5': '#555555',
+        '--chart-series-6': '#666666',
+        '--chart-series-7': '#777777',
+        '--chart-series-8': '#888888',
+        '--chart-series-9': '#999999',
+        '--chart-series-10': '#aaaaaa',
         '--chart-text': '#abcdef',
         '--chart-grid': 'rgba(1,2,3,.2)',
       }[name] ?? ''),
@@ -183,7 +210,10 @@ describe('readThemeTokens', () => {
       danger: '#aa0000',
       warning: '#bb8800',
       notice: '#0033aa',
-      series: ['#111111', '#222222', '#333333', '#444444'],
+      series: [
+        '#111111', '#222222', '#333333', '#444444', '#555555',
+        '#666666', '#777777', '#888888', '#999999', '#aaaaaa',
+      ],
       chartText: '#abcdef',
       chartGrid: 'rgba(1,2,3,.2)',
       chartAccent: defaultTokens.chartAccent,

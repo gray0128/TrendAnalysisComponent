@@ -1,6 +1,6 @@
 # TrendAnalysisComponent
 
-Vue 3 数据项历史趋势组件。支持最多 8 条非信号数据项的聚合趋势、启用阈值线，以及 `dark` / `light` / `remote-blue` 三套主题。
+Vue 3 数据项历史趋势组件。支持最多 10 条非信号数据项的聚合趋势、启用阈值线，以及 `dark` / `light` / `remote-blue` 三套主题。
 
 ## 安装
 

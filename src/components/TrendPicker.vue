@@ -67,11 +67,40 @@ const groups = computed(() => {
     group.items.push(item)
     if (!group.pointName && item.pointName) group.pointName = item.pointName
   }
+  result.sort((a, b) => a.pointId.localeCompare(b.pointId, undefined, { numeric: true }))
+  return result
+})
+
+const nameAggregates = computed(() => {
+  const result: { name: string; items: TrendItemIdentity[] }[] = []
+  const indexByName = new Map<string, number>()
+  for (const item of visibleCandidates.value) {
+    const name = labelOf(item)
+    let index = indexByName.get(name)
+    if (index == null) {
+      index = result.length
+      indexByName.set(name, index)
+      result.push({ name, items: [] })
+    }
+    result[index]!.items.push(item)
+  }
   return result
 })
 
 function groupTitle(group: { pointId: string; pointName: string }) {
   return group.pointName ? `${group.pointId} ${group.pointName}` : group.pointId
+}
+
+function onAggregateClick(items: TrendItemIdentity[]) {
+  const next = items.slice(0, MAX_TREND_SERIES)
+  capNotice.value = items.length > MAX_TREND_SERIES
+  emit('update:selected', next)
+}
+
+function onReset() {
+  capNotice.value = false
+  if (props.selected.length === 0) return
+  emit('update:selected', [])
 }
 
 function onChange(item: TrendItemIdentity, event: Event) {
@@ -99,49 +128,70 @@ function onChange(item: TrendItemIdentity, event: Event) {
       <label>测点名称 <input v-model="filters.pointName" type="text"></label>
       <label>数据项 <input v-model="filters.kpiId" type="text"></label>
       <label>数据项展示名称 <input v-model="filters.displayName" type="text"></label>
-      <p class="trend-picker__meta">已选 {{ selected.length }}/{{ MAX_TREND_SERIES }}</p>
+      <div class="trend-picker__actions">
+        <p class="trend-picker__meta">已选 {{ selected.length }}/{{ MAX_TREND_SERIES }}</p>
+        <button
+          type="button"
+          class="trend-picker__reset"
+          :disabled="selected.length === 0"
+          @click="onReset"
+        >重置</button>
+      </div>
     </div>
     <p v-else class="trend-picker__meta">已选 {{ selected.length }}/{{ MAX_TREND_SERIES }}</p>
-    <template v-if="grouped">
-      <div
-        v-for="group in groups"
-        :key="group.pointId"
-        class="trend-picker__group"
+    <div v-if="grouped && nameAggregates.length" class="trend-picker__aggregates">
+      <button
+        v-for="agg in nameAggregates"
+        :key="agg.name"
+        type="button"
+        class="trend-picker__aggregate"
+        @click="onAggregateClick(agg.items)"
       >
-        <div class="trend-picker__group-title">{{ groupTitle(group) }}</div>
-        <div class="trend-picker__items">
-          <label
-            v-for="item in group.items"
-            :key="itemKey(item)"
-            class="trend-picker__item"
-            :class="{ 'is-selected': isSelected(item) }"
-          >
-            <input
-              type="checkbox"
-              :checked="isSelected(item)"
-              @change="onChange(item, $event)"
-            >
-            {{ labelOf(item) }}
-          </label>
-        </div>
-      </div>
-    </template>
-    <template v-else>
-      <label
-        v-for="item in candidates"
-        :key="itemKey(item)"
-        class="trend-picker__item"
-        :class="{ 'is-selected': isSelected(item) }"
-      >
-        <input
-          type="checkbox"
-          :checked="isSelected(item)"
-          @change="onChange(item, $event)"
+        {{ agg.name }}（{{ agg.items.length }}）
+      </button>
+    </div>
+    <div class="trend-picker__list">
+      <template v-if="grouped">
+        <div
+          v-for="group in groups"
+          :key="group.pointId"
+          class="trend-picker__group"
         >
-        {{ labelOf(item) }}
-      </label>
-    </template>
-    <p v-if="grouped && groups.length === 0" class="trend-picker__notice">没有匹配的数据项</p>
-    <p v-if="capNotice" class="trend-picker__notice">最多选择 8 个数据项</p>
+          <div class="trend-picker__group-title">{{ groupTitle(group) }}</div>
+          <div class="trend-picker__items">
+            <label
+              v-for="item in group.items"
+              :key="itemKey(item)"
+              class="trend-picker__item"
+              :class="{ 'is-selected': isSelected(item) }"
+            >
+              <input
+                type="checkbox"
+                :checked="isSelected(item)"
+                @change="onChange(item, $event)"
+              >
+              {{ labelOf(item) }}
+            </label>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <label
+          v-for="item in candidates"
+          :key="itemKey(item)"
+          class="trend-picker__item"
+          :class="{ 'is-selected': isSelected(item) }"
+        >
+          <input
+            type="checkbox"
+            :checked="isSelected(item)"
+            @change="onChange(item, $event)"
+          >
+          {{ labelOf(item) }}
+        </label>
+      </template>
+      <p v-if="grouped && groups.length === 0" class="trend-picker__notice">没有匹配的数据项</p>
+      <p v-if="capNotice" class="trend-picker__notice">最多选择 {{ MAX_TREND_SERIES }} 个数据项</p>
+    </div>
   </div>
 </template>

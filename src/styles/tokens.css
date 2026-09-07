@@ -53,7 +53,9 @@
   --panel-shadow: 0 10px 28px rgba(0,5,20,.2); --page-list-background: linear-gradient(180deg, rgba(10,24,52,.86), rgba(7,17,38,.9));
   --drawer-border: rgba(70,128,188,.58); --drawer-shadow: -16px 0 48px rgba(0,4,18,.48); --drawer-title: #f1f7ff;
   --chart-text: #a9b7ca; --chart-grid: rgba(84,124,172,.2); --chart-accent: #32b4dd; --chart-muted-bar: rgba(77,125,179,.62); --chart-remaining: rgba(74,102,142,.28); --chart-pie-border: #132746;
-  --chart-series-1: #32b4dd; --chart-series-2: #67d5ae; --chart-series-3: #249fe0; --chart-series-4: #ffbd61;
+  --chart-series-1: #32b4dd; --chart-series-2: #67d5ae; --chart-series-3: #f472b6; --chart-series-4: #ffbd61;
+  --chart-series-5: #a78bfa; --chart-series-6: #fb923c; --chart-series-7: #4ade80; --chart-series-8: #f87171;
+  --chart-series-9: #facc15; --chart-series-10: #818cf8;
 }
 
 .dit-root[data-theme='light'] {
@@ -102,6 +104,8 @@
   --drawer-border: rgba(70,125,155,.32); --drawer-shadow: -16px 0 40px rgba(30,70,90,.22); --drawer-title: #183047;
   --chart-text: #38566d; --chart-grid: rgba(70,125,155,.18); --chart-accent: #d45116; --chart-muted-bar: rgba(70,125,155,.42); --chart-remaining: rgba(70,125,155,.16); --chart-pie-border: #dcebf1;
   --chart-series-1: #087fa5; --chart-series-2: #17734d; --chart-series-3: #d45116; --chart-series-4: #a76800;
+  --chart-series-5: #6d28d9; --chart-series-6: #be185d; --chart-series-7: #1d4ed8; --chart-series-8: #4d7c0f;
+  --chart-series-9: #0f766e; --chart-series-10: #b45309;
 }
 
 .dit-root[data-theme='dark'] {
@@ -150,4 +154,6 @@
   --drawer-border: rgba(100,180,220,.25); --drawer-shadow: -16px 0 48px rgba(0,0,0,.45); --drawer-title: #f4f9ff;
   --chart-text: #8aa4bc; --chart-grid: rgba(80,140,180,.1); --chart-accent: #ff6a2b; --chart-muted-bar: rgba(165,185,205,.42); --chart-remaining: rgba(255,255,255,.1); --chart-pie-border: #081628;
   --chart-series-1: #3ec6e8; --chart-series-2: #36d399; --chart-series-3: #ff6a2b; --chart-series-4: #faad14;
+  --chart-series-5: #c084fc; --chart-series-6: #f472b6; --chart-series-7: #4ade80; --chart-series-8: #f87171;
+  --chart-series-9: #facc15; --chart-series-10: #818cf8;
 }

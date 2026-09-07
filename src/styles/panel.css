@@ -317,7 +317,7 @@
   flex-direction: column;
   min-height: 0;
   max-height: 42%;
-  overflow: auto;
+  overflow: hidden;
   padding: 10px 12px 12px;
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius-panel);
@@ -327,7 +327,51 @@
 .trend-picker {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
   gap: 8px;
+}
+
+.trend-picker__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* cancel inherited scrollbar-width/color so ::-webkit-scrollbar can paint */
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+.trend-picker__list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.trend-picker__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.trend-picker__list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 8px;
+}
+
+.trend-picker__list:hover::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+}
+
+.trend-picker__list:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+@-moz-document url-prefix() {
+  .trend-picker__list {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .trend-picker__list:hover {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
 }
 
 .trend-picker__meta {
@@ -338,6 +382,29 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.trend-picker__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.trend-picker__actions .trend-picker__meta {
+  margin-left: 0;
+}
+
+.dit-root .trend-picker__reset {
+  height: var(--control-height);
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.dit-root .trend-picker__reset:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .trend-picker__filters {
@@ -352,6 +419,33 @@
 
 .trend-picker__filters input[type='text'] {
   width: 148px;
+}
+
+.trend-picker__aggregates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.dit-root .trend-picker__aggregate {
+  height: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.dit-root .trend-picker__aggregate:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--control-border));
+  background: var(--cyan-dim);
+  color: var(--text);
 }
 
 .trend-picker__group {

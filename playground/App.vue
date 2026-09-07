@@ -16,10 +16,7 @@ const debug = reactive({
 const panelKey = ref(0)
 
 const trend = computed<TrendLoadInput>(() => ({
-  items: [{
-    ...mockSeedItem,
-    deviceCode: debug.deviceCode,
-  }],
+  items: [],
 }))
 
 const picker = computed<PickerInput>(() => ({

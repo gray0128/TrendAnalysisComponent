@@ -1,5 +1,6 @@
 import { itemKey, itemTriple } from './identity'
 import type { ThresholdMark } from './mapThreshold'
+import { MAX_TREND_SERIES } from '../types'
 import type { TrendItemIdentity } from '../types'
 
 export interface ThemeTokens {
@@ -16,13 +17,27 @@ export const defaultTokens: ThemeTokens = {
   danger: '#ff6b6b',
   warning: '#ff8a2b',
   notice: '#4d9eff',
-  series: ['#32b4dd', '#67d5ae', '#249fe0', '#ffbd61'],
+  series: [
+    '#32b4dd',
+    '#67d5ae',
+    '#f472b6',
+    '#ffbd61',
+    '#a78bfa',
+    '#fb923c',
+    '#4ade80',
+    '#f87171',
+    '#facc15',
+    '#818cf8',
+  ],
   chartText: '#a9b7ca',
   chartGrid: 'rgba(84,124,172,.2)',
   chartAccent: '#32b4dd',
 }
 
-const SERIES_VARS = ['--chart-series-1', '--chart-series-2', '--chart-series-3', '--chart-series-4'] as const
+const SERIES_VARS = Array.from(
+  { length: MAX_TREND_SERIES },
+  (_, i) => `--chart-series-${i + 1}`,
+)
 
 export function readThemeTokens(el: Element | null | undefined): ThemeTokens {
   if (!el) return defaultTokens
@@ -94,6 +109,26 @@ function levelColor(level: ThresholdMark['level'], tokens: ThemeTokens): string 
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function formatTooltipTime(ms: number): string {
+  const d = new Date(ms)
+  if (!Number.isFinite(d.getTime())) return ''
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+}
+
+function tooltipTimeMs(params: unknown): number | null {
+  const items = Array.isArray(params) ? params : [params]
+  const first = items[0] as { value?: unknown; axisValue?: unknown } | undefined
+  if (!first) return null
+  const fromValue = Array.isArray(first.value) ? Number(first.value[0]) : NaN
+  if (Number.isFinite(fromValue)) return fromValue
+  const fromAxis = Number(first.axisValue)
+  return Number.isFinite(fromAxis) ? fromAxis : null
 }
 
 function yAxisBound(
@@ -203,11 +238,14 @@ export function buildChartOption(input: BuildChartOptionInput) {
           p.componentType === 'markLine' && p.data?.hover,
         )
         if (mark?.data?.hover) return mark.data.hover
-        return items.map((p: { marker?: string; seriesName?: string; value?: unknown }) => {
+        const lines = items.map((p: { marker?: string; seriesName?: string; value?: unknown }) => {
           const raw = Array.isArray(p.value) ? p.value[1] : p.value
           const text = raw == null || raw === '' ? '-' : raw
           return `${p.marker ?? ''}${p.seriesName ?? ''}: ${text}`
-        }).join('<br/>')
+        })
+        const ms = tooltipTimeMs(items)
+        const time = ms != null ? formatTooltipTime(ms) : ''
+        return [time, ...lines].filter(Boolean).join('<br/>')
       },
     },
     series: series.map(s => {

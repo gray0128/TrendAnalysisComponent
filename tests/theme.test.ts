@@ -138,6 +138,12 @@ describe('theme tokens', () => {
                 '--chart-series-2': '#222222',
                 '--chart-series-3': '#333333',
                 '--chart-series-4': '#444444',
+                '--chart-series-5': '#555555',
+                '--chart-series-6': '#666666',
+                '--chart-series-7': '#777777',
+                '--chart-series-8': '#888888',
+                '--chart-series-9': '#999999',
+                '--chart-series-10': '#aaaaaa',
               }[name] ?? target.getPropertyValue(name))
             }
             return Reflect.get(target, prop, receiver)
@@ -159,13 +165,19 @@ describe('theme tokens', () => {
       danger: '#ff0000',
       warning: '#ffa500',
       notice: '#0000ff',
-      series: ['#111111', '#222222', '#333333', '#444444'],
+      series: [
+        '#111111', '#222222', '#333333', '#444444', '#555555',
+        '#666666', '#777777', '#888888', '#999999', '#aaaaaa',
+      ],
       chartText: chartOptionMod.defaultTokens.chartText,
       chartGrid: chartOptionMod.defaultTokens.chartGrid,
       chartAccent: chartOptionMod.defaultTokens.chartAccent,
     })
     const option = panelOption(wrapper)
-    expect(option.color).toEqual(['#111111', '#222222', '#333333', '#444444'])
+    expect(option.color).toEqual([
+      '#111111', '#222222', '#333333', '#444444', '#555555',
+      '#666666', '#777777', '#888888', '#999999', '#aaaaaa',
+    ])
     expect((option.series[0].markLine?.data as Array<{ lineStyle: { color: string } }>)[0].lineStyle.color).toBe('#ff0000')
   })
 })

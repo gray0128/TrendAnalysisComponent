@@ -11,7 +11,7 @@ export function resolveTheme(
   return 'remote-blue'
 }
 
-export const MAX_TREND_SERIES = 8
+export const MAX_TREND_SERIES = 10
 export const DEFAULT_WINDOW_MS = 2 * 60 * 60 * 1000
 export const AGGREGATE_FUNC = 2
 export const RESERVE_DECIMAL = 3
