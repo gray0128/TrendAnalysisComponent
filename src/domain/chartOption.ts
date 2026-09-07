@@ -7,6 +7,8 @@ export interface ThemeTokens {
   warning: string
   notice: string
   series: string[]
+  chartText: string
+  chartGrid: string
 }
 
 export const defaultTokens: ThemeTokens = {
@@ -14,6 +16,8 @@ export const defaultTokens: ThemeTokens = {
   warning: '#ff8a2b',
   notice: '#4d9eff',
   series: ['#32b4dd', '#67d5ae', '#249fe0', '#ffbd61'],
+  chartText: '#a9b7ca',
+  chartGrid: 'rgba(84,124,172,.2)',
 }
 
 const SERIES_VARS = ['--chart-series-1', '--chart-series-2', '--chart-series-3', '--chart-series-4'] as const
@@ -25,13 +29,17 @@ export function readThemeTokens(el: Element | null | undefined): ThemeTokens {
   const danger = css('--danger')
   const warning = css('--warning')
   const notice = css('--notice')
+  const chartText = css('--chart-text')
+  const chartGrid = css('--chart-grid')
   const series = SERIES_VARS.map(css)
-  if (!danger && !warning && !notice && series.every(c => !c)) return defaultTokens
+  if (!danger && !warning && !notice && !chartText && !chartGrid && series.every(c => !c)) return defaultTokens
   return {
     danger: danger || defaultTokens.danger,
     warning: warning || defaultTokens.warning,
     notice: notice || defaultTokens.notice,
-    series: series.map((c, i) => c || defaultTokens.series[i]),
+    series: series.map((c, i) => c || defaultTokens.series[i]!),
+    chartText: chartText || defaultTokens.chartText,
+    chartGrid: chartGrid || defaultTokens.chartGrid,
   }
 }
 
@@ -72,11 +80,28 @@ export function parseAggregateData(payload: any): { times: number[]; values: (nu
 export function buildChartOption(input: BuildChartOptionInput) {
   const { series, showThresholds, marks, themeTokens } = input
 
+  const axisText = { color: themeTokens.chartText }
   return {
     color: themeTokens.series,
-    xAxis: { type: 'time' },
-    yAxis: { type: 'value' },
-    legend: { data: series.map(s => seriesName(s.item)) },
+    textStyle: { color: themeTokens.chartText },
+    backgroundColor: 'transparent',
+    xAxis: {
+      type: 'time',
+      axisLine: { lineStyle: { color: themeTokens.chartGrid } },
+      axisLabel: axisText,
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { lineStyle: { color: themeTokens.chartGrid } },
+      axisLabel: axisText,
+      splitLine: { lineStyle: { color: themeTokens.chartGrid } },
+    },
+    legend: {
+      data: series.map(s => seriesName(s.item)),
+      textStyle: axisText,
+    },
+    tooltip: { trigger: 'axis' },
     series: series.map(s => {
       const key = itemKey(s.item)
       const matchedMarks = showThresholds ? marks.filter(m => m.itemKey === key) : []
@@ -91,7 +116,7 @@ export function buildChartOption(input: BuildChartOptionInput) {
           data: matchedMarks.map(m => ({
             yAxis: m.y,
             name: m.label,
-            label: { formatter: m.label },
+            label: { formatter: m.label, color: themeTokens.chartText },
             lineStyle: {
               type: 'dashed',
               color: levelColor(m.level, themeTokens),

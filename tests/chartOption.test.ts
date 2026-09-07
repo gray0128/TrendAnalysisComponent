@@ -54,7 +54,11 @@ describe('buildChartOption', () => {
       themeTokens: defaultTokens,
     })
 
-    expect(option.yAxis).toEqual(expect.objectContaining({ type: 'value' }))
+    expect(option.yAxis).toEqual(expect.objectContaining({
+      type: 'value',
+      axisLabel: { color: defaultTokens.chartText },
+      splitLine: { lineStyle: { color: defaultTokens.chartGrid } },
+    }))
     expect(Array.isArray(option.yAxis) ? option.yAxis : [option.yAxis]).toHaveLength(1)
     expect(option.series).toHaveLength(1)
     expect(option.series[0]).toEqual(expect.objectContaining({
@@ -96,6 +100,8 @@ describe('readThemeTokens', () => {
         '--chart-series-2': '#222222',
         '--chart-series-3': '#333333',
         '--chart-series-4': '#444444',
+        '--chart-text': '#abcdef',
+        '--chart-grid': 'rgba(1,2,3,.2)',
       }[name] ?? ''),
     } as CSSStyleDeclaration)
     expect(readThemeTokens(el)).toEqual({
@@ -103,6 +109,8 @@ describe('readThemeTokens', () => {
       warning: '#bb8800',
       notice: '#0033aa',
       series: ['#111111', '#222222', '#333333', '#444444'],
+      chartText: '#abcdef',
+      chartGrid: 'rgba(1,2,3,.2)',
     })
   })
 })

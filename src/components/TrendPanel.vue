@@ -210,6 +210,10 @@ watch(
   },
   { immediate: true, deep: true },
 )
+
+watch(resolvedTheme, () => {
+  rebuildOption()
+})
 </script>
 
 <template>

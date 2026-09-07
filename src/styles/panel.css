@@ -5,12 +5,6 @@
   gap: 8px;
 }
 
-.trend-query-bar input[type='datetime-local'],
-.trend-query-bar select,
-.trend-query-bar button {
-  font: inherit;
-}
-
 .trend-chart {
   width: 100%;
   height: 320px;
@@ -26,19 +20,26 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  color: var(--text);
   font: inherit;
+  font-size: 12px;
 }
 
 .trend-picker__notice {
   margin: 4px 0 0;
+  color: var(--list-state-warning);
+  font-size: 12px;
 }
 
 .dit-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
+  padding: 12px;
   color: var(--text);
   background: var(--surface-panel);
+  color-scheme: inherit;
 }
 
 .dit-shell {
@@ -92,9 +93,87 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  color: var(--text);
+  font-size: 12px;
 }
 
 .dit-notice,
 .dit-failed {
   margin: 0;
+  font-size: 12px;
+}
+
+.dit-notice { color: var(--list-state-warning); }
+.dit-failed { color: var(--list-state-danger); }
+
+.dit-root label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.dit-root input[type='datetime-local'],
+.dit-root select,
+.dit-root button {
+  height: 30px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text);
+  border-radius: var(--radius-control);
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+  color-scheme: inherit;
+}
+
+.dit-root input[type='datetime-local']:focus,
+.dit-root select:focus,
+.dit-root button:focus {
+  border-color: var(--focus-ring);
+  box-shadow: var(--control-focus-shadow);
+}
+
+.dit-root select {
+  appearance: none;
+  padding-right: 26px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-3) 50%),
+    linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) calc(50% - 1px),
+    calc(100% - 9px) calc(50% - 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.dit-root select option {
+  background: var(--surface-popover);
+  color: var(--text);
+}
+
+.dit-root button {
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+.dit-root button:hover {
+  filter: brightness(1.05);
+}
+
+.dit-root .trend-query-bar button:last-of-type {
+  border: 1px solid var(--primary-border);
+  background: var(--primary-background);
+  color: #fff;
+  font-weight: 600;
+}
+
+.dit-root input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
+.dit-root {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
