@@ -198,7 +198,7 @@ export function buildChartOption(input: BuildChartOptionInput) {
     backgroundColor: 'transparent',
     animationDuration: 360,
     animationEasing: 'cubicOut',
-    grid: { top: 44, right: 68, bottom: 42, left: 12, containLabel: true },
+    grid: { top: 44, right: 68, bottom: 12, left: 12, containLabel: true },
     xAxis: {
       type: 'time',
       min: isFiniteNumber(input.startTimeMs) ? input.startTimeMs : undefined,
@@ -230,7 +230,7 @@ export function buildChartOption(input: BuildChartOptionInput) {
         yAxisIndex: 0,
         right: 12,
         top: 44,
-        bottom: 80,
+        bottom: 50,
         width: 16,
         filterMode: 'none',
         showDataShadow: false,

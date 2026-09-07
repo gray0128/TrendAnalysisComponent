@@ -209,7 +209,7 @@ describe('buildChartOption', () => {
       yAxisIndex: 0,
       right: 12,
       top: 44,
-      bottom: 80,
+      bottom: 50,
       filterMode: 'none',
     }))
     const inside = option.dataZoom.find((dz: { type: string }) => dz.type === 'inside')
