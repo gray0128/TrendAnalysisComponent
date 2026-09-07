@@ -1,6 +1,16 @@
 {
-  "name": "data-item-trend",
+  "name": "@gray0128/trend-analysis-component",
   "version": "0.1.0",
+  "description": "Vue 3 数据项历史趋势分析组件",
+  "author": "gray0128",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gray0128/TrendAnalysisComponent.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
