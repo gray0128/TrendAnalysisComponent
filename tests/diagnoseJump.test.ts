@@ -41,21 +41,35 @@ describe('planDiagnoseJump', () => {
 })
 
 describe('diagnose URLs and deviceKpi', () => {
-  it('builds a triple URL for a single item', () => {
+  it('builds a triple URL for a single item with hash route and origin', () => {
     expect(buildSingleDiagnoseUrl('/ddsat/', item('DEV01', 1), 10, 20)).toBe(
-      '/ddsat/?deviceCode=DEV01&pointId=01&collectKpiId=KPI_1&st=10&et=20&origin=pms',
+      '/ddsat/#/comprehensiveTrend/device/DEV01?origin=pms&deviceCode=DEV01&pointId=01&collectKpiId=KPI_1&st=10&et=20',
     )
   })
 
-  it('builds a device-only URL for multiple items', () => {
-    expect(buildMultiDiagnoseUrl('/ddsat/', 'DEV01')).toBe('/ddsat/?deviceCode=DEV01')
+  it('builds a device URL for multiple items with hash route and origin', () => {
+    expect(buildMultiDiagnoseUrl('/ddsat/', 'DEV01')).toBe(
+      '/ddsat/#/comprehensiveTrend/device/DEV01?origin=pms&deviceCode=DEV01',
+    )
   })
 
-  it('writes sessionStorage.deviceKpi without calling an API', () => {
+  it('handles base URL without trailing slash or with existing hash', () => {
+    expect(buildMultiDiagnoseUrl('http://172.26.66.105/ddsat', 'DEV01')).toBe(
+      'http://172.26.66.105/ddsat/#/comprehensiveTrend/device/DEV01?origin=pms&deviceCode=DEV01',
+    )
+    expect(buildMultiDiagnoseUrl('http://172.26.66.105/ddsat/#/comprehensiveTrend', 'DEV01')).toBe(
+      'http://172.26.66.105/ddsat/#/comprehensiveTrend/device/DEV01?origin=pms&deviceCode=DEV01',
+    )
+  })
+
+  it('writes sessionStorage.deviceKpi with time window without calling an API', () => {
     const items = [item('DEV', 1), item('DEV', 2)]
-    const json = writeDeviceKpi(items)
-    expect(JSON.parse(json)).toEqual(toDeviceKpi(items))
+    const json = writeDeviceKpi(items, 10, 20)
+    expect(JSON.parse(json)).toEqual(toDeviceKpi(items, 10, 20))
     expect(sessionStorage.getItem(DEVICE_KPI_STORAGE_KEY)).toBe(json)
+    const parsed = JSON.parse(json)
+    expect(parsed[0].startTime).toBe(10)
+    expect(parsed[0].endTime).toBe(20)
   })
 })
 

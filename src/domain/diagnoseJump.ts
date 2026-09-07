@@ -29,7 +29,11 @@ export function planDiagnoseJump(items: TrendItemIdentity[]): DiagnosePlan {
   }
 }
 
-export function toDeviceKpi(items: TrendItemIdentity[]) {
+export function toDeviceKpi(
+  items: TrendItemIdentity[],
+  startTimeMs?: number,
+  endTimeMs?: number,
+) {
   return items.map(item => ({
     deviceCode: item.deviceCode,
     pointId: item.pointId,
@@ -39,7 +43,13 @@ export function toDeviceKpi(items: TrendItemIdentity[]) {
     collectKpiId: item.kpiId,
     kpiName: item.displayName || item.kpiId,
     dataItemDisplayName: item.displayName || item.kpiId,
+    startTime: startTimeMs,
+    endTime: endTimeMs,
   }))
+}
+
+function cleanBaseUrl(baseUrl: string): string {
+  return (baseUrl.split('#')[0] || '').trim().replace(/\/+$/, '')
 }
 
 export function buildDiagnoseUrl(
@@ -63,22 +73,25 @@ export function buildSingleDiagnoseUrl(
   startTimeMs: number,
   endTimeMs: number,
 ): string {
-  return buildDiagnoseUrl(baseUrl, {
-    deviceCode: item.deviceCode,
-    pointId: item.pointId,
-    collectKpiId: item.kpiId,
-    st: String(startTimeMs),
-    et: String(endTimeMs),
-    origin: 'pms',
-  })
+  const base = cleanBaseUrl(baseUrl)
+  const device = encodeURIComponent(item.deviceCode)
+  const point = encodeURIComponent(item.pointId)
+  const kpi = encodeURIComponent(item.kpiId)
+  return `${base}/#/comprehensiveTrend/device/${device}?origin=pms&deviceCode=${device}&pointId=${point}&collectKpiId=${kpi}&st=${startTimeMs}&et=${endTimeMs}`
 }
 
 export function buildMultiDiagnoseUrl(baseUrl: string, deviceCode: string): string {
-  return buildDiagnoseUrl(baseUrl, { deviceCode })
+  const base = cleanBaseUrl(baseUrl)
+  const device = encodeURIComponent(deviceCode)
+  return `${base}/#/comprehensiveTrend/device/${device}?origin=pms&deviceCode=${device}`
 }
 
-export function writeDeviceKpi(items: TrendItemIdentity[]): string {
-  const json = JSON.stringify(toDeviceKpi(items))
+export function writeDeviceKpi(
+  items: TrendItemIdentity[],
+  startTimeMs?: number,
+  endTimeMs?: number,
+): string {
+  const json = JSON.stringify(toDeviceKpi(items, startTimeMs, endTimeMs))
   sessionStorage.setItem(DEVICE_KPI_STORAGE_KEY, json)
   return json
 }

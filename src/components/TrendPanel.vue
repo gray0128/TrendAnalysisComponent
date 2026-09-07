@@ -230,7 +230,7 @@ function onDiagnose() {
     return
   }
   diagnoseNotice.value = plan.capped ? DIAGNOSE_MESSAGES.capped : ''
-  const json = writeDeviceKpi(plan.items)
+  const json = writeDeviceKpi(plan.items, startTimeMs.value, endTimeMs.value)
   openDiagnoseWindow(buildMultiDiagnoseUrl(baseUrl, plan.deviceCode), json)
 }
 

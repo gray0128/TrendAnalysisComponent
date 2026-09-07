@@ -362,9 +362,42 @@ describe('TrendPanel', () => {
     await flushPromises()
     await wrapper.find('.trend-diagnose-btn').trigger('click')
     expect(open).toHaveBeenCalledWith(
-      '/ddsat/?deviceCode=DEV&pointId=01&collectKpiId=KPI_0&st=10&et=20&origin=pms',
+      '/ddsat/#/comprehensiveTrend/device/DEV?origin=pms&deviceCode=DEV&pointId=01&collectKpiId=KPI_0&st=10&et=20',
       '_blank',
     )
+    vi.unstubAllGlobals()
+  })
+
+  it('opens diagnose analysis with hash URL and stores deviceKpi with time window for multiple items', async () => {
+    const open = vi.fn(() => null)
+    vi.stubGlobal('open', open)
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: [item(0)], startTimeMs: 100, endTimeMs: 200 },
+        picker: {
+          type: 'items',
+          items: [item(0), item(1)],
+        },
+        diagnoseBaseUrl: '/ddsat/',
+      },
+    })
+    await flushPromises()
+    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', [item(0), item(1)])
+    await flushPromises()
+    await wrapper.find('.trend-diagnose-btn').trigger('click')
+    expect(open).toHaveBeenCalledWith(
+      '/ddsat/#/comprehensiveTrend/device/DEV?origin=pms&deviceCode=DEV',
+      '_blank',
+    )
+    const stored = JSON.parse(sessionStorage.getItem('deviceKpi') || '[]')
+    expect(stored).toHaveLength(2)
+    expect(stored[0]).toMatchObject({
+      deviceCode: 'DEV',
+      pointId: '01',
+      kpiId: 'KPI_0',
+      startTime: 100,
+      endTime: 200,
+    })
     vi.unstubAllGlobals()
   })
 
