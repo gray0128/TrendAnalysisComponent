@@ -4,6 +4,14 @@
 .dit-root,
 .dit-root[data-theme='remote-blue'] {
   color-scheme: dark;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration: 180ms;
+  --control-height: 32px;
+  --font: ui-sans-serif, system-ui, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --text-on-primary: #f3f8ff;
+  --banner-warning-bg: rgba(255, 138, 43, .12);
+  --banner-danger-bg: rgba(255, 107, 107, .12);
   --bg-0: #091431; --bg-1: #0d1d3b; --bg-2: #132746; --bg-3: #1a3153;
   --glass: rgba(24, 48, 82, .76); --glass-border: rgba(75, 115, 164, .48);
   --text: #d7e0e8; --text-2: #9babc0; --text-3: #879bb5;
@@ -24,10 +32,10 @@
   --surface-drawer: linear-gradient(180deg, #132745, #0c1b35);
   --surface-drawer-head: linear-gradient(180deg, rgba(22, 50, 88, .96), rgba(15, 35, 66, .88));
   --surface-drawer-tabs: rgba(10, 28, 58, .72);
-  --table-header: #304767; --table-header-text: #d7e0e8; --focus-ring: #54c7ee; --control-focus-shadow: none;
+  --table-header: #304767; --table-header-text: #d7e0e8; --focus-ring: #54c7ee; --control-focus-shadow: 0 0 0 3px var(--accent-glow);
   --table-body: #132746; --table-row-hover: rgba(50,180,221,.08); --table-row-active: rgba(36,159,224,.12); --table-row-line: rgba(65,102,148,.28);
   --table-sticky-hover: #1a3153; --table-sticky-active: #1a3153; --table-sticky-edge: rgba(70,128,188,.16);
-  --radius-control: 3px; --radius-panel: 4px;
+  --radius-control: 6px; --radius-panel: 10px;
   --scrollbar-thumb: rgba(84,124,172,.62); --scrollbar-thumb-hover: rgba(84,124,172,.82); --scrollbar-track: rgba(12,29,57,.72);
   --avatar-bg: linear-gradient(135deg, #1a4a78, #12325a); --avatar-border: rgba(68,170,236,.45); --avatar-text: var(--accent-2);
   --select-panel-bg: var(--surface-popover);
@@ -50,6 +58,9 @@
 
 .dit-root[data-theme='light'] {
   color-scheme: light;
+  --text-on-primary: #fff8f4;
+  --banner-warning-bg: rgba(230, 122, 0, .1);
+  --banner-danger-bg: rgba(200, 16, 46, .08);
   --bg-0: #edf4f8; --bg-1: #f7fafc; --bg-2: #e8f1f5; --bg-3: #dce9ef;
   --text: #183047; --text-2: #547087; --text-3: #4f6c81;
   --glass: rgba(255,255,255,.76); --glass-border: rgba(90,140,170,.36);
@@ -72,7 +83,7 @@
   --table-header: #dbe8ee; --table-header-text: #38566d; --focus-ring: #a94416; --control-focus-shadow: 0 0 0 3px var(--accent-glow);
   --table-body: #f7fafc; --table-row-hover: rgba(178,70,23,.06); --table-row-active: rgba(178,70,23,.1); --table-row-line: rgba(70,125,155,.12);
   --table-sticky-hover: #f3eeea; --table-sticky-active: #f0e6df; --table-sticky-edge: rgba(70,125,155,.1);
-  --radius-control: 4px; --radius-panel: 6px;
+  --radius-control: 6px; --radius-panel: 10px;
   --scrollbar-thumb: rgba(79,108,129,.52); --scrollbar-thumb-hover: rgba(79,108,129,.72); --scrollbar-track: rgba(228,236,241,.8);
   --avatar-bg: linear-gradient(135deg, #f3e6dc, #e4c4ae); --avatar-border: rgba(178,70,23,.32); --avatar-text: #8d3412;
   --select-panel-bg: var(--surface-popover);
@@ -95,6 +106,9 @@
 
 .dit-root[data-theme='dark'] {
   color-scheme: dark;
+  --text-on-primary: #fff8f4;
+  --banner-warning-bg: rgba(255, 138, 43, .12);
+  --banner-danger-bg: rgba(255, 107, 107, .12);
   --bg-0: #050b14; --bg-1: #071422; --bg-2: #0a1a2e; --bg-3: #0e2238;
   --glass: rgba(12,30,52,.28); --glass-border: rgba(140,200,240,.28);
   --text: #e8f2fc; --text-2: #8aa4bc; --text-3: #7a95ae;
@@ -114,10 +128,10 @@
   --surface-drawer: linear-gradient(180deg, rgba(10,24,42,.98), rgba(6,14,26,.99));
   --surface-drawer-head: linear-gradient(180deg, rgba(12,32,54,.55), rgba(8,20,36,.25));
   --surface-drawer-tabs: rgba(4,12,24,.35);
-  --table-header: rgba(8,18,32,.98); --table-header-text: var(--text-2); --focus-ring: #3ec6e8; --control-focus-shadow: none;
+  --table-header: rgba(8,18,32,.98); --table-header-text: var(--text-2); --focus-ring: #3ec6e8; --control-focus-shadow: 0 0 0 3px rgba(62, 198, 232, .28);
   --table-body: #0a1624; --table-row-hover: rgba(62,198,232,.06); --table-row-active: rgba(255,106,43,.08); --table-row-line: rgba(80,150,200,.08);
   --table-sticky-hover: #0d1e2d; --table-sticky-active: #1a1614; --table-sticky-edge: rgba(80,150,200,.1);
-  --radius-control: 5px; --radius-panel: 6px;
+  --radius-control: 6px; --radius-panel: 10px;
   --scrollbar-thumb: rgba(100,160,200,.5); --scrollbar-thumb-hover: rgba(120,190,230,.7); --scrollbar-track: rgba(0,16,32,.55);
   --avatar-bg: linear-gradient(135deg, #1a6090, #0d3050); --avatar-border: rgba(62,198,232,.35); --avatar-text: var(--cyan);
   --select-panel-bg: var(--surface-popover);

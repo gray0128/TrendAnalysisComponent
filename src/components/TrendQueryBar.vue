@@ -75,36 +75,38 @@ function onQuery() {
 
 <template>
   <div class="trend-query-bar">
-    <label>
-      开始时间
-      <input
-        type="datetime-local"
-        :value="toDatetimeLocal(startTimeMs)"
-        @input="onStartInput"
-      >
-    </label>
-    <label>
-      截止时间
-      <input
-        type="datetime-local"
-        :value="toDatetimeLocal(endTimeMs)"
-        @input="onEndInput"
-      >
-    </label>
-    <label>
-      快捷时间
-      <select
-        v-model="shortcutId"
-        class="trend-query-bar__shortcut"
-        @change="onShortcutSelect"
-      >
-        <option
-          v-for="preset in TIME_PRESETS"
-          :key="preset.id"
-          :value="preset.id"
-        >{{ padPresetLabel(preset.label) }}</option>
-      </select>
-    </label>
+    <div class="trend-query-bar__times">
+      <label>
+        开始时间
+        <input
+          type="datetime-local"
+          :value="toDatetimeLocal(startTimeMs)"
+          @input="onStartInput"
+        >
+      </label>
+      <label>
+        截止时间
+        <input
+          type="datetime-local"
+          :value="toDatetimeLocal(endTimeMs)"
+          @input="onEndInput"
+        >
+      </label>
+      <label>
+        快捷时间
+        <select
+          v-model="shortcutId"
+          class="trend-query-bar__shortcut"
+          @change="onShortcutSelect"
+        >
+          <option
+            v-for="preset in TIME_PRESETS"
+            :key="preset.id"
+            :value="preset.id"
+          >{{ padPresetLabel(preset.label) }}</option>
+        </select>
+      </label>
+    </div>
     <button type="button" class="trend-query-bar__query" @click="onQuery">查询</button>
     <div class="trend-query-bar__shift">
       <button type="button" class="trend-query-bar__shift-btn" @click="onShift(-1)">前移</button>

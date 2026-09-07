@@ -76,8 +76,9 @@ describe('buildChartOption', () => {
 
     expect(option.yAxis).toEqual(expect.objectContaining({
       type: 'value',
+      scale: true,
       axisLabel: { color: defaultTokens.chartText },
-      splitLine: { lineStyle: { color: defaultTokens.chartGrid } },
+      splitLine: { lineStyle: expect.objectContaining({ color: defaultTokens.chartGrid }) },
     }))
     expect(Array.isArray(option.yAxis) ? option.yAxis : [option.yAxis]).toHaveLength(1)
     expect(option.series).toHaveLength(1)
@@ -90,10 +91,18 @@ describe('buildChartOption', () => {
     }))
     expect(option.legend.show).toBe(true)
     expect(option.legend.data).toEqual(['DEV01·01·RMS'])
+    expect(option.tooltip.axisPointer).toEqual(expect.objectContaining({
+      type: 'line',
+      lineStyle: expect.objectContaining({
+        color: defaultTokens.chartAccent,
+        width: 2,
+      }),
+    }))
 
-    const markLine = (option.series[0] as { markLine: { data: Array<{ yAxis: number; hover: string; lineStyle: { type: string; color: string } }> } }).markLine
+    const markLine = (option.series[0] as { markLine: { data: Array<{ yAxis: number; hover: string; lineStyle: { type: string; color: string }; label: { position: string; align: string; verticalAlign: string } }> } }).markLine
     expect(markLine.data).toHaveLength(3)
     expect(markLine.data.every(d => d.lineStyle.type === 'dashed')).toBe(true)
+    expect(markLine.data.every(d => d.label.position === 'end' && d.label.align === 'left' && d.label.verticalAlign === 'middle')).toBe(true)
     expect(markLine.data.map(d => d.lineStyle.color)).toEqual([
       defaultTokens.danger,
       defaultTokens.warning,
@@ -102,6 +111,27 @@ describe('buildChartOption', () => {
     expect(markLine.data.map(d => d.yAxis)).toEqual([100, 80, 60])
     expect(markLine.data[0]!.hover).toBe('DEV01·01·RMS<br/>条件：大于 100')
     expect(option.color).toEqual(defaultTokens.series)
+  })
+
+  it('does not pin y-axis to 0 and expands only for visible marks outside data', () => {
+    const scaled = buildChartOption({
+      series: [{ item, times: [1, 2], values: [40, 50] }],
+      showThresholds: false,
+      marks: [{ itemKey: 'DEV01*01*RMS', level: '危险', y: 10, label: '危险', triple: 'DEV01·01·RMS', condition: '' }],
+      themeTokens: defaultTokens,
+    })
+    expect(scaled.yAxis.scale).toBe(true)
+    expect(scaled.yAxis.min).toBeUndefined()
+    expect(scaled.yAxis.max).toBeUndefined()
+
+    const withLowMark = buildChartOption({
+      series: [{ item, times: [1, 2], values: [40, 50] }],
+      showThresholds: true,
+      marks: [{ itemKey: 'DEV01*01*RMS', level: '危险', y: 10, label: '危险', triple: 'DEV01·01·RMS', condition: '' }],
+      themeTokens: defaultTokens,
+    })
+    expect(withLowMark.yAxis.min).toBe(10)
+    expect(withLowMark.yAxis.max).toBeUndefined()
   })
 
   it('names series as deviceCode·pointName·displayName', () => {
@@ -156,6 +186,7 @@ describe('readThemeTokens', () => {
       series: ['#111111', '#222222', '#333333', '#444444'],
       chartText: '#abcdef',
       chartGrid: 'rgba(1,2,3,.2)',
+      chartAccent: defaultTokens.chartAccent,
     })
   })
 })

@@ -162,6 +162,7 @@ describe('theme tokens', () => {
       series: ['#111111', '#222222', '#333333', '#444444'],
       chartText: chartOptionMod.defaultTokens.chartText,
       chartGrid: chartOptionMod.defaultTokens.chartGrid,
+      chartAccent: chartOptionMod.defaultTokens.chartAccent,
     })
     const option = panelOption(wrapper)
     expect(option.color).toEqual(['#111111', '#222222', '#333333', '#444444'])

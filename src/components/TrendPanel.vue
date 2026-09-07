@@ -48,6 +48,7 @@ let thresholdCacheKey: string | null = null
 
 const pickerNotice = ref('')
 const diagnoseNotice = ref('')
+const loading = ref(true)
 const overflowNotice = computed(
   () => capSeries(props.trend.items).overflow > 0 || selectedOverflow.value,
 )
@@ -141,6 +142,7 @@ async function ensureThresholds(items: TrendItemIdentity[], generation: number) 
 
 async function loadTrends(generation = ++loadGeneration) {
   if (generation !== loadGeneration) return
+  loading.value = true
 
   const capped = capSeries(selected.value)
   selectedOverflow.value = capped.overflow > 0
@@ -155,6 +157,7 @@ async function loadTrends(generation = ++loadGeneration) {
     await ensureThresholds([], generation)
     if (generation !== loadGeneration) return
     rebuildOption()
+    loading.value = false
     return
   }
 
@@ -190,6 +193,7 @@ async function loadTrends(generation = ++loadGeneration) {
   await ensureThresholds(items, generation)
   if (generation !== loadGeneration) return
   rebuildOption()
+  loading.value = false
 }
 
 function onWindowChange(next: { startTimeMs: number; endTimeMs: number }) {
@@ -257,6 +261,7 @@ watch(resolvedTheme, () => {
       <button type="button" class="trend-diagnose-btn" @click="onDiagnose">诊断分析</button>
       <label class="dit-threshold">
         <input v-model="showThresholds" type="checkbox">
+        <span class="dit-switch" aria-hidden="true" />
         阈值线
       </label>
     </div>
@@ -266,7 +271,7 @@ watch(resolvedTheme, () => {
     <p v-if="failedKeys.length" class="dit-failed">
       {{ failedKeys.join('、') }} 加载失败
     </p>
-    <TrendChart :option="chartOption" />
+    <TrendChart :option="chartOption" :loading="loading" />
     <div v-if="hasPicker" class="dit-picker">
       <TrendPicker
         :candidates="candidates"

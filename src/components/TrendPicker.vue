@@ -99,7 +99,9 @@ function onChange(item: TrendItemIdentity, event: Event) {
       <label>测点名称 <input v-model="filters.pointName" type="text"></label>
       <label>数据项 <input v-model="filters.kpiId" type="text"></label>
       <label>数据项展示名称 <input v-model="filters.displayName" type="text"></label>
+      <p class="trend-picker__meta">已选 {{ selected.length }}/{{ MAX_TREND_SERIES }}</p>
     </div>
+    <p v-else class="trend-picker__meta">已选 {{ selected.length }}/{{ MAX_TREND_SERIES }}</p>
     <template v-if="grouped">
       <div
         v-for="group in groups"
@@ -112,6 +114,7 @@ function onChange(item: TrendItemIdentity, event: Event) {
             v-for="item in group.items"
             :key="itemKey(item)"
             class="trend-picker__item"
+            :class="{ 'is-selected': isSelected(item) }"
           >
             <input
               type="checkbox"
@@ -128,6 +131,7 @@ function onChange(item: TrendItemIdentity, event: Event) {
         v-for="item in candidates"
         :key="itemKey(item)"
         class="trend-picker__item"
+        :class="{ 'is-selected': isSelected(item) }"
       >
         <input
           type="checkbox"
@@ -137,6 +141,7 @@ function onChange(item: TrendItemIdentity, event: Event) {
         {{ labelOf(item) }}
       </label>
     </template>
+    <p v-if="grouped && groups.length === 0" class="trend-picker__notice">没有匹配的数据项</p>
     <p v-if="capNotice" class="trend-picker__notice">最多选择 8 个数据项</p>
   </div>
 </template>

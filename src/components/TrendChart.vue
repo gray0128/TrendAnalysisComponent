@@ -5,7 +5,17 @@ import '../styles/panel.css'
 
 const props = defineProps<{
   option: Record<string, unknown>
+  loading?: boolean
 }>()
+
+function hasSeriesData(option: Record<string, unknown>) {
+  const series = option.series
+  if (!Array.isArray(series) || series.length === 0) return false
+  return series.some((item) => {
+    const data = (item as { data?: unknown }).data
+    return Array.isArray(data) && data.length > 0
+  })
+}
 
 const el = ref<HTMLDivElement | null>(null)
 const rootEl = ref<HTMLDivElement | null>(null)
@@ -102,8 +112,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="rootEl" class="trend-chart">
+  <div
+    ref="rootEl"
+    class="trend-chart"
+    :class="{ 'is-loading': loading }"
+    :aria-busy="loading ? 'true' : undefined"
+  >
     <div ref="el" class="trend-chart__plot" />
+    <div v-if="loading" class="trend-chart__state">加载中</div>
+    <div v-else-if="!hasSeriesData(option)" class="trend-chart__state">暂无趋势数据</div>
     <div
       v-if="markTip"
       ref="tipEl"

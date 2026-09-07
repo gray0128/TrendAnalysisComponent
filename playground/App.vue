@@ -48,7 +48,7 @@ function onTheme(theme: Theme) {
 </script>
 
 <template>
-  <div class="pg" :data-theme="debug.theme">
+  <div class="pg dit-root" :data-theme="debug.theme">
     <header class="pg-bar">
       <strong>趋势分析组件调试</strong>
       <label>数据源
@@ -94,38 +94,50 @@ html, body, #app { height: 100%; margin: 0; }
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #0b1628;
-  color: #d7e0e8;
-  font: 13px/1.4 system-ui, sans-serif;
+  background: var(--app-background);
+  color: var(--text);
 }
 .pg-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(70,128,188,.4);
-  background: #10233f;
+  min-height: 56px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--shell-topbar-border);
+  background: var(--shell-topbar-background);
+  box-shadow: var(--shell-topbar-shadow);
+}
+.pg-bar strong {
+  color: var(--shell-title);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  margin-right: 8px;
 }
 .pg-bar label { display: inline-flex; align-items: center; gap: 6px; }
 .pg-bar input, .pg-bar select, .pg-bar button {
-  height: 28px;
-  border: 1px solid rgba(72,106,151,.72);
-  background: rgba(18,38,70,.9);
-  color: #d7e0e8;
-  border-radius: 3px;
-  padding: 0 8px;
+  height: 32px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text);
+  border-radius: var(--radius-control);
+  padding: 0 10px;
 }
-.pg-bar button { cursor: pointer; }
-.pg-hint { color: #879bb5; font-size: 12px; }
+.pg-bar button { cursor: pointer; color: var(--text-2); }
+.pg-hint { color: var(--text-3); font-size: 12px; }
 .pg-main {
   flex: 1;
   min-height: 0;
   display: flex;
+  padding: 12px;
 }
 .pg-main > .dit-panel {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--panel-shadow);
 }
 </style>

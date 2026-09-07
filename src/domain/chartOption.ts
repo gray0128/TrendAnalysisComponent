@@ -9,6 +9,7 @@ export interface ThemeTokens {
   series: string[]
   chartText: string
   chartGrid: string
+  chartAccent: string
 }
 
 export const defaultTokens: ThemeTokens = {
@@ -18,6 +19,7 @@ export const defaultTokens: ThemeTokens = {
   series: ['#32b4dd', '#67d5ae', '#249fe0', '#ffbd61'],
   chartText: '#a9b7ca',
   chartGrid: 'rgba(84,124,172,.2)',
+  chartAccent: '#32b4dd',
 }
 
 const SERIES_VARS = ['--chart-series-1', '--chart-series-2', '--chart-series-3', '--chart-series-4'] as const
@@ -31,8 +33,9 @@ export function readThemeTokens(el: Element | null | undefined): ThemeTokens {
   const notice = css('--notice')
   const chartText = css('--chart-text')
   const chartGrid = css('--chart-grid')
+  const chartAccent = css('--chart-accent')
   const series = SERIES_VARS.map(css)
-  if (!danger && !warning && !notice && !chartText && !chartGrid && series.every(c => !c)) return defaultTokens
+  if (!danger && !warning && !notice && !chartText && !chartGrid && !chartAccent && series.every(c => !c)) return defaultTokens
   return {
     danger: danger || defaultTokens.danger,
     warning: warning || defaultTokens.warning,
@@ -40,6 +43,7 @@ export function readThemeTokens(el: Element | null | undefined): ThemeTokens {
     series: series.map((c, i) => c || defaultTokens.series[i]!),
     chartText: chartText || defaultTokens.chartText,
     chartGrid: chartGrid || defaultTokens.chartGrid,
+    chartAccent: chartAccent || defaultTokens.chartAccent,
   }
 }
 
@@ -66,10 +70,55 @@ function markHover(m: ThresholdMark): string {
     .join('<br/>')
 }
 
+function markLabelStyle(m: ThresholdMark, tokens: ThemeTokens) {
+  return {
+    show: true,
+    formatter: m.label,
+    position: 'end' as const,
+    align: 'left' as const,
+    verticalAlign: 'middle' as const,
+    distance: 8,
+    color: tokens.chartText,
+    fontSize: 12,
+    fontWeight: 'normal' as const,
+    opacity: 1,
+    overflow: 'none' as const,
+  }
+}
+
 function levelColor(level: ThresholdMark['level'], tokens: ThemeTokens): string {
   if (level === '危险') return tokens.danger
   if (level === '警告') return tokens.warning
   return tokens.notice
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function yAxisBound(
+  series: ChartSeriesInput[],
+  showThresholds: boolean,
+  marks: ThresholdMark[],
+): { min?: number; max?: number } {
+  if (!showThresholds || marks.length === 0) return {}
+  let dataMin = Infinity
+  let dataMax = -Infinity
+  for (const s of series) {
+    for (const value of s.values) {
+      if (!isFiniteNumber(value)) continue
+      if (value < dataMin) dataMin = value
+      if (value > dataMax) dataMax = value
+    }
+  }
+  if (!Number.isFinite(dataMin) || !Number.isFinite(dataMax)) return {}
+  const bound: { min?: number; max?: number } = {}
+  for (const mark of marks) {
+    if (!isFiniteNumber(mark.y)) continue
+    if (mark.y < dataMin) bound.min = bound.min == null ? mark.y : Math.min(bound.min, mark.y)
+    if (mark.y > dataMax) bound.max = bound.max == null ? mark.y : Math.max(bound.max, mark.y)
+  }
+  return bound
 }
 
 export function parseAggregateData(payload: any): { times: number[]; values: (number | null)[] } {
@@ -92,27 +141,62 @@ export function buildChartOption(input: BuildChartOptionInput) {
     .map(s => seriesName(s.item))
   return {
     color: themeTokens.series,
-    textStyle: { color: themeTokens.chartText },
+    textStyle: { color: themeTokens.chartText, fontFamily: 'inherit' },
     backgroundColor: 'transparent',
+    animationDuration: 360,
+    animationEasing: 'cubicOut',
+    grid: { top: 44, right: 56, bottom: 24, left: 12, containLabel: true },
     xAxis: {
       type: 'time',
+      axisTick: { show: false },
       axisLine: { lineStyle: { color: themeTokens.chartGrid } },
-      axisLabel: axisText,
+      axisLabel: { ...axisText, hideOverlap: true },
       splitLine: { show: false },
     },
     yAxis: {
       type: 'value',
-      axisLine: { lineStyle: { color: themeTokens.chartGrid } },
+      scale: true,
+      ...yAxisBound(series, showThresholds, marks),
+      axisTick: { show: false },
+      axisLine: { show: false, lineStyle: { color: themeTokens.chartGrid } },
       axisLabel: axisText,
-      splitLine: { lineStyle: { color: themeTokens.chartGrid } },
+      splitLine: { lineStyle: { color: themeTokens.chartGrid, type: 'dashed' } },
+      splitNumber: 4,
     },
     legend: {
       show: legendData.length > 0,
       data: legendData,
+      top: 8,
+      left: 12,
+      itemWidth: 14,
+      itemHeight: 3,
+      icon: 'roundRect',
       textStyle: axisText,
     },
     tooltip: {
       trigger: 'axis',
+      confine: true,
+      extraCssText: [
+        'background: var(--surface-popover)',
+        'color: var(--text)',
+        'border: 1px solid var(--glass-border)',
+        'border-radius: 8px',
+        'box-shadow: var(--panel-shadow)',
+        'padding: 8px 10px',
+        'font-size: 12px',
+        'line-height: 1.5',
+      ].join(';'),
+      axisPointer: {
+        type: 'line',
+        snap: true,
+        z: 20,
+        lineStyle: {
+          color: themeTokens.chartAccent,
+          width: 2,
+          type: 'dashed',
+          opacity: 0.92,
+        },
+      },
       formatter(params: unknown) {
         const items = Array.isArray(params) ? params : [params]
         const mark = items.find((p: { componentType?: string; data?: { hover?: string } }) =>
@@ -121,7 +205,7 @@ export function buildChartOption(input: BuildChartOptionInput) {
         if (mark?.data?.hover) return mark.data.hover
         return items.map((p: { marker?: string; seriesName?: string; value?: unknown }) => {
           const raw = Array.isArray(p.value) ? p.value[1] : p.value
-          const text = raw == null || raw === '' ? '—' : raw
+          const text = raw == null || raw === '' ? '-' : raw
           return `${p.marker ?? ''}${p.seriesName ?? ''}: ${text}`
         }).join('<br/>')
       },
@@ -134,6 +218,10 @@ export function buildChartOption(input: BuildChartOptionInput) {
         name: seriesName(s.item),
         showSymbol: false,
         symbol: 'none',
+        smooth: false,
+        lineStyle: { width: 2 },
+        areaStyle: { opacity: 0.08 },
+        emphasis: { focus: 'series', lineStyle: { width: 2.5 } },
         data: s.times.map((t, i) => [t, s.values[i] ?? null]),
       }
       if (matchedMarks.length > 0) {
@@ -149,15 +237,15 @@ export function buildChartOption(input: BuildChartOptionInput) {
               yAxis: m.y,
               name: m.label,
               hover,
-              label: {
-                formatter: m.label,
-                color: themeTokens.chartText,
-                padding: [4, 8],
-              },
+              label: markLabelStyle(m, themeTokens),
               lineStyle: { type: 'dashed', color, width: 2 },
               emphasis: {
-                label: { padding: [4, 8] },
-                lineStyle: { width: 2, color },
+                label: markLabelStyle(m, themeTokens),
+                lineStyle: { width: 2, color, opacity: 1 },
+              },
+              blur: {
+                label: markLabelStyle(m, themeTokens),
+                lineStyle: { type: 'dashed', width: 2, color, opacity: 1 },
               },
             }
           }),
