@@ -67,5 +67,5 @@ npm run build
 `npm run dev` 打开 playground（默认 `http://localhost:5177`）。
 
 - 数据源选 **Mock**：不发真实请求，用内置设备 `MOCKDEV01`。
-- 数据源选 **后端代理**：按 `vite.config.ts` 里的 `PROXY_TARGET` 转发 `/dosis`、`/iehm-cloud`、`/api/threshold`（写法与 dosiv-v2 相同，切换环境只改这一处），并填写 token / userId。
+- 数据源选 **后端代理**：按 `vite.config.ts` 里的 `PROXY_TARGET` 转发 `/dosis`、`/iehm-cloud`、`/api/threshold`（写法与 dosiv-v2 相同，切换环境只改这一处），并填写 token / userId。配置模板见 [vite.config.example.ts](vite.config.example.ts)。
 
