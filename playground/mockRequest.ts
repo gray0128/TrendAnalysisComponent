@@ -59,9 +59,10 @@ function mockThresholds(data: any) {
       kpiId,
       enabled: '1',
       severity: kpiId === 'TEMP' ? 2 : 3,
-      ruleCondition: '03',
-      refValue1: kpiId === 'TEMP' ? 60 : 45,
-      message: `${kpiId} 大于阈值`,
+      ruleCondition: kpiId === 'TEMP' ? '07' : '03',
+      refValue1: kpiId === 'TEMP' ? 10 : 45,
+      refValue2: kpiId === 'TEMP' ? 60 : undefined,
+      message: kpiId === 'TEMP' ? '介于' : `${kpiId} 大于阈值`,
     }
   })
   return { code: 200, result: rows }

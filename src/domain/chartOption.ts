@@ -1,4 +1,4 @@
-import { itemKey } from './identity'
+import { itemKey, itemTriple } from './identity'
 import type { ThresholdMark } from './mapThreshold'
 import type { TrendItemIdentity } from '../types'
 
@@ -57,7 +57,13 @@ export interface BuildChartOptionInput {
 }
 
 function seriesName(item: TrendItemIdentity): string {
-  return item.displayName || item.kpiId
+  return itemTriple(item)
+}
+
+function markHover(m: ThresholdMark): string {
+  return [m.triple, m.condition ? `条件：${m.condition}` : '']
+    .filter(Boolean)
+    .join('<br/>')
 }
 
 function levelColor(level: ThresholdMark['level'], tokens: ThemeTokens): string {
@@ -81,6 +87,9 @@ export function buildChartOption(input: BuildChartOptionInput) {
   const { series, showThresholds, marks, themeTokens } = input
 
   const axisText = { color: themeTokens.chartText }
+  const legendData = series
+    .filter(s => s.times.length > 0)
+    .map(s => seriesName(s.item))
   return {
     color: themeTokens.series,
     textStyle: { color: themeTokens.chartText },
@@ -98,30 +107,60 @@ export function buildChartOption(input: BuildChartOptionInput) {
       splitLine: { lineStyle: { color: themeTokens.chartGrid } },
     },
     legend: {
-      data: series.map(s => seriesName(s.item)),
+      show: legendData.length > 0,
+      data: legendData,
       textStyle: axisText,
     },
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      formatter(params: unknown) {
+        const items = Array.isArray(params) ? params : [params]
+        const mark = items.find((p: { componentType?: string; data?: { hover?: string } }) =>
+          p.componentType === 'markLine' && p.data?.hover,
+        )
+        if (mark?.data?.hover) return mark.data.hover
+        return items.map((p: { marker?: string; seriesName?: string; value?: unknown }) => {
+          const raw = Array.isArray(p.value) ? p.value[1] : p.value
+          const text = raw == null || raw === '' ? '—' : raw
+          return `${p.marker ?? ''}${p.seriesName ?? ''}: ${text}`
+        }).join('<br/>')
+      },
+    },
     series: series.map(s => {
       const key = itemKey(s.item)
       const matchedMarks = showThresholds ? marks.filter(m => m.itemKey === key) : []
       const option: Record<string, unknown> = {
         type: 'line',
         name: seriesName(s.item),
+        showSymbol: false,
+        symbol: 'none',
         data: s.times.map((t, i) => [t, s.values[i] ?? null]),
       }
       if (matchedMarks.length > 0) {
         option.markLine = {
           symbol: 'none',
-          data: matchedMarks.map(m => ({
-            yAxis: m.y,
-            name: m.label,
-            label: { formatter: m.label, color: themeTokens.chartText },
-            lineStyle: {
-              type: 'dashed',
-              color: levelColor(m.level, themeTokens),
-            },
-          })),
+          silent: false,
+          z: 100,
+          tooltip: { show: false },
+          data: matchedMarks.map(m => {
+            const hover = markHover(m)
+            const color = levelColor(m.level, themeTokens)
+            return {
+              yAxis: m.y,
+              name: m.label,
+              hover,
+              label: {
+                formatter: m.label,
+                color: themeTokens.chartText,
+                padding: [4, 8],
+              },
+              lineStyle: { type: 'dashed', color, width: 2 },
+              emphasis: {
+                label: { padding: [4, 8] },
+                lineStyle: { width: 2, color },
+              },
+            }
+          }),
         }
       }
       return option

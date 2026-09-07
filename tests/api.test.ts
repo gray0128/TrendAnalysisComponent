@@ -99,7 +99,7 @@ describe('injected request client', () => {
       },
     })
     expect(marks).toEqual([
-      { itemKey: 'D*01*k', level: '危险', y: 60, label: '危险' },
+      { itemKey: 'D*01*k', level: '危险', y: 60, label: '危险', triple: 'D·01·k', condition: '' },
     ])
   })
 })

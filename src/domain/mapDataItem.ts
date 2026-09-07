@@ -27,7 +27,7 @@ export function mapKpiRowToIdentity(
     pointId: row.pointNo ?? pointNo,
     kpiId: resolveKpiId(row),
     displayName: row.dataItemDisplayName ?? row.kpiId,
-    pointName: undefined,
+    pointName: row.pointName != null && row.pointName !== '' ? String(row.pointName) : undefined,
     unit: undefined,
   }
 }

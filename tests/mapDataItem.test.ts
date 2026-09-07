@@ -5,12 +5,12 @@ describe('mapDataItem', () => {
   it('drops signal rows and keeps collect identity', () => {
     const list = mapAllDateList({
       '01': [
-        { kpiId: 'RMS', dataItemDisplayName: '速度有效值', signal: false, pointNo: '01' },
-        { kpiId: 'WAVE', signal: true, pointNo: '01' },
+        { kpiId: 'RMS', dataItemDisplayName: '速度有效值', signal: false, pointNo: '01', pointName: '测点01' },
+        { kpiId: 'WAVE', signal: true, pointNo: '01', pointName: '测点01' },
       ],
     }, 'DEV01')
     expect(list).toEqual([
-      { deviceCode: 'DEV01', pointId: '01', kpiId: 'RMS', displayName: '速度有效值', pointName: undefined, unit: undefined },
+      { deviceCode: 'DEV01', pointId: '01', kpiId: 'RMS', displayName: '速度有效值', pointName: '测点01', unit: undefined },
     ])
   })
 

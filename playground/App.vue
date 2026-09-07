@@ -82,6 +82,7 @@ function onTheme(theme: Theme) {
         :trend="trend"
         :picker="picker"
         :theme="debug.theme"
+        diagnose-base-url="/ddsat/"
       />
     </main>
   </div>

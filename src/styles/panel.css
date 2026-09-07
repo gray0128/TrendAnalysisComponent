@@ -5,9 +5,65 @@
   gap: 8px;
 }
 
+.trend-query-bar__shift {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dit-root .trend-query-bar__shift-btn {
+  transition: border-color .12s, color .12s, filter .12s, transform .08s;
+}
+
+.dit-root .trend-query-bar__shift-btn:hover:not(:disabled) {
+  border-color: var(--focus-ring);
+  color: var(--text);
+  filter: brightness(1.08);
+}
+
+.dit-root .trend-query-bar__shift-btn:active:not(:disabled) {
+  transform: scale(0.96);
+  filter: brightness(0.92);
+}
+
+.dit-root .trend-query-bar__shift-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.trend-query-bar select {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 .trend-chart {
+  position: relative;
   width: 100%;
-  height: 320px;
+  height: 50%;
+  min-height: 360px;
+  flex: 0 0 auto;
+}
+
+.trend-chart__plot {
+  width: 100%;
+  height: 100%;
+}
+
+.trend-chart__tip {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  box-sizing: border-box;
+  max-width: min(280px, calc(100% - 16px));
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #fff;
+  color: #183047;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  overflow-wrap: anywhere;
 }
 
 .trend-picker {
@@ -16,9 +72,53 @@
   gap: 4px;
 }
 
-.trend-picker__item {
+.trend-picker__filters {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.trend-picker__filters input[type='text'] {
+  width: 140px;
+}
+
+.trend-picker__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+
+.trend-picker--grouped .trend-picker__group-title,
+.trend-picker--grouped .trend-picker__item {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.trend-picker__group-title {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trend-picker__items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1 1 12em;
+  min-width: 0;
+  gap: 4px 16px;
+}
+
+.trend-picker__item {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  white-space: nowrap;
   gap: 6px;
   color: var(--text);
   font: inherit;
@@ -115,6 +215,7 @@
 }
 
 .dit-root input[type='datetime-local'],
+.dit-root input[type='text'],
 .dit-root select,
 .dit-root button {
   height: 30px;
@@ -130,6 +231,7 @@
 }
 
 .dit-root input[type='datetime-local']:focus,
+.dit-root input[type='text']:focus,
 .dit-root select:focus,
 .dit-root button:focus {
   border-color: var(--focus-ring);
@@ -163,11 +265,26 @@
   filter: brightness(1.05);
 }
 
-.dit-root .trend-query-bar button:last-of-type {
+.dit-root .trend-query-bar__query {
   border: 1px solid var(--primary-border);
   background: var(--primary-background);
   color: #fff;
   font-weight: 600;
+}
+
+.dit-root .trend-diagnose-btn {
+  transition: border-color .12s, color .12s, filter .12s, transform .08s;
+}
+
+.dit-root .trend-diagnose-btn:hover {
+  border-color: var(--focus-ring);
+  color: var(--text);
+  filter: brightness(1.08);
+}
+
+.dit-root .trend-diagnose-btn:active {
+  transform: scale(0.96);
+  filter: brightness(0.92);
 }
 
 .dit-root input[type='checkbox'] {

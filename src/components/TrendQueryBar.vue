@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { TIME_PRESETS, applyPreset, shiftWindow } from '../time'
+import { computed, ref } from 'vue'
+import { TIME_PRESETS, applyPreset, padPresetLabel, shiftWindow } from '../time'
 import '../styles/panel.css'
 
 const props = defineProps<{
@@ -14,7 +14,8 @@ const emit = defineEmits<{
   query: []
 }>()
 
-const shiftPresetId = ref(TIME_PRESETS[0].id)
+const shortcutId = ref('2h')
+const shiftPresetId = ref('2h')
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
@@ -37,6 +38,8 @@ function shiftPresetMs() {
   return TIME_PRESETS.find(p => p.id === shiftPresetId.value)?.ms ?? TIME_PRESETS[0].ms
 }
 
+const canShiftForward = computed(() => props.endTimeMs < currentNow())
+
 function onStartInput(event: Event) {
   const value = (event.target as HTMLInputElement).value
   emit('change', { startTimeMs: fromDatetimeLocal(value), endTimeMs: props.endTimeMs })
@@ -47,12 +50,15 @@ function onEndInput(event: Event) {
   emit('change', { startTimeMs: props.startTimeMs, endTimeMs: fromDatetimeLocal(value) })
 }
 
-function onShortcut(presetMs: number) {
-  emit('change', applyPreset(props.endTimeMs, presetMs))
+function onShortcutSelect() {
+  const preset = TIME_PRESETS.find(p => p.id === shortcutId.value)
+  if (!preset) return
+  emit('change', applyPreset(props.endTimeMs, preset.ms))
   emit('query')
 }
 
 function onShift(direction: -1 | 1) {
+  if (direction === 1 && !canShiftForward.value) return
   emit('change', shiftWindow(
     props.startTimeMs,
     props.endTimeMs,
@@ -85,25 +91,36 @@ function onQuery() {
         @input="onEndInput"
       >
     </label>
-    <button
-      v-for="preset in TIME_PRESETS"
-      :key="preset.id"
-      type="button"
-      @click="onShortcut(preset.ms)"
-    >
-      {{ preset.label }}
-    </button>
-    <button type="button" @click="onShift(-1)">前移</button>
-    <select v-model="shiftPresetId">
-      <option
-        v-for="preset in TIME_PRESETS"
-        :key="preset.id"
-        :value="preset.id"
+    <label>
+      快捷时间
+      <select
+        v-model="shortcutId"
+        class="trend-query-bar__shortcut"
+        @change="onShortcutSelect"
       >
-        {{ preset.label }}
-      </option>
-    </select>
-    <button type="button" @click="onShift(1)">后移</button>
-    <button type="button" @click="onQuery">查询</button>
+        <option
+          v-for="preset in TIME_PRESETS"
+          :key="preset.id"
+          :value="preset.id"
+        >{{ padPresetLabel(preset.label) }}</option>
+      </select>
+    </label>
+    <button type="button" class="trend-query-bar__query" @click="onQuery">查询</button>
+    <div class="trend-query-bar__shift">
+      <button type="button" class="trend-query-bar__shift-btn" @click="onShift(-1)">前移</button>
+      <select v-model="shiftPresetId">
+        <option
+          v-for="preset in TIME_PRESETS"
+          :key="preset.id"
+          :value="preset.id"
+        >{{ padPresetLabel(preset.label) }}</option>
+      </select>
+      <button
+        type="button"
+        class="trend-query-bar__shift-btn"
+        :disabled="!canShiftForward"
+        @click="onShift(1)"
+      >后移</button>
+    </div>
   </div>
 </template>

@@ -5,12 +5,20 @@ import type { TrendItemIdentity } from '../src/types'
 const echartsMocks = vi.hoisted(() => ({
   setOption: vi.fn(),
   dispose: vi.fn(),
+  resize: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+  dispatchAction: vi.fn(),
 }))
 
 vi.mock('echarts', () => ({
   init: () => ({
     setOption: echartsMocks.setOption,
     dispose: echartsMocks.dispose,
+    resize: echartsMocks.resize,
+    on: echartsMocks.on,
+    off: echartsMocks.off,
+    dispatchAction: echartsMocks.dispatchAction,
   }),
 }))
 
@@ -75,7 +83,7 @@ describe('threshold toggle', () => {
 
   it('fetches enabled thresholds once when toggled on, not again when toggled off', async () => {
     vi.mocked(fetchEnabledThresholds).mockResolvedValue([
-      { itemKey: 'DEV*01*KPI_0', level: '危险', y: 100, label: '危险' },
+      { itemKey: 'DEV*01*KPI_0', level: '危险', y: 100, label: '危险', triple: 'DEV·01·KPI_0', condition: '大于 100' },
     ])
     const buildSpy = vi.spyOn(chartOptionMod, 'buildChartOption')
     const wrapper = mount(TrendPanel, {
@@ -110,7 +118,7 @@ describe('theme tokens', () => {
       data: { timestamps: [1_000_000], values: [[10]] },
     })
     vi.mocked(fetchEnabledThresholds).mockResolvedValue([
-      { itemKey: 'DEV*01*KPI_0', level: '危险', y: 100, label: '危险' },
+      { itemKey: 'DEV*01*KPI_0', level: '危险', y: 100, label: '危险', triple: 'DEV·01·KPI_0', condition: '大于 100' },
     ])
   })
 

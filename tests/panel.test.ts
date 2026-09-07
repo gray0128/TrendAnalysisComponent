@@ -6,6 +6,10 @@ vi.mock('echarts', () => ({
   init: () => ({
     setOption: vi.fn(),
     dispose: vi.fn(),
+    resize: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    dispatchAction: vi.fn(),
   }),
 }))
 
@@ -90,6 +94,8 @@ describe('TrendPanel', () => {
     await flushPromises()
 
     expect(fetchDeviceDataItems).toHaveBeenCalledWith('DEV')
+    expect(wrapper.findComponent(TrendPicker).props('grouped')).toBe(true)
+    expect(wrapper.find('.trend-picker__filters').exists()).toBe(true)
     const boxes = wrapper.findAll('.dit-picker input[type="checkbox"]')
     expect(boxes).toHaveLength(3)
     expect((boxes[0].element as HTMLInputElement).checked).toBe(true)
@@ -183,6 +189,8 @@ describe('TrendPanel', () => {
       },
     })
     await flushPromises()
+    expect(wrapper.findComponent(TrendPicker).props('grouped')).toBe(false)
+    expect(wrapper.find('.trend-picker__filters').exists()).toBe(false)
     vi.mocked(fetchAggregateTrend).mockClear()
 
     wrapper.findComponent(TrendPicker).vm.$emit('update:selected', nine)
@@ -265,5 +273,46 @@ describe('TrendPanel', () => {
     await wrapper.find('.dit-threshold input').setValue(true)
     await flushPromises()
     expect(seriesData(wrapper)).toEqual([[[1, 10]]])
+  })
+
+  it('opens diagnose analysis with a triple URL for a single selected item', async () => {
+    const open = vi.fn(() => null)
+    vi.stubGlobal('open', open)
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: [item(0)], startTimeMs: 10, endTimeMs: 20 },
+        diagnoseBaseUrl: '/ddsat/',
+      },
+    })
+    await flushPromises()
+    await wrapper.find('.trend-diagnose-btn').trigger('click')
+    expect(open).toHaveBeenCalledWith(
+      '/ddsat/?deviceCode=DEV&pointId=01&collectKpiId=KPI_0&st=10&et=20&origin=pms',
+      '_blank',
+    )
+    vi.unstubAllGlobals()
+  })
+
+  it('prompts when diagnose jump spans devices', async () => {
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: [item(0)] },
+        picker: {
+          type: 'items',
+          items: [
+            item(0),
+            { deviceCode: 'OTHER', pointId: '02', kpiId: 'KPI_1', displayName: '数据项1' },
+          ],
+        },
+      },
+    })
+    await flushPromises()
+    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', [
+      item(0),
+      { deviceCode: 'OTHER', pointId: '02', kpiId: 'KPI_1', displayName: '数据项1' },
+    ])
+    await flushPromises()
+    await wrapper.find('.trend-diagnose-btn').trigger('click')
+    expect(wrapper.text()).toContain('请选择同一设备的数据项后再跳转诊断分析')
   })
 })

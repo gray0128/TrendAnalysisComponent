@@ -31,6 +31,26 @@ describe('parseAggregateData', () => {
 })
 
 describe('buildChartOption', () => {
+  it('hides legend when there is no series or no points', () => {
+    const empty = buildChartOption({
+      series: [],
+      showThresholds: false,
+      marks: [],
+      themeTokens: defaultTokens,
+    })
+    expect(empty.legend.show).toBe(false)
+    expect(empty.legend.data).toEqual([])
+
+    const noPoints = buildChartOption({
+      series: [{ item, times: [], values: [] }],
+      showThresholds: false,
+      marks: [],
+      themeTokens: defaultTokens,
+    })
+    expect(noPoints.legend.show).toBe(false)
+    expect(noPoints.legend.data).toEqual([])
+  })
+
   it('omits markLine when thresholds hidden', () => {
     const option = buildChartOption({
       series: [],
@@ -43,9 +63,9 @@ describe('buildChartOption', () => {
 
   it('builds shared-axis line series and dashed markLines by level color', () => {
     const marks: ThresholdMark[] = [
-      { itemKey: 'DEV01*01*RMS', level: '危险', y: 100, label: '危险' },
-      { itemKey: 'DEV01*01*RMS', level: '警告', y: 80, label: '警告' },
-      { itemKey: 'DEV01*01*RMS', level: '注意', y: 60, label: '注意' },
+      { itemKey: 'DEV01*01*RMS', level: '危险', y: 100, label: '危险', triple: 'DEV01·01·RMS', condition: '大于 100' },
+      { itemKey: 'DEV01*01*RMS', level: '警告', y: 80, label: '警告', triple: 'DEV01·01·RMS', condition: '大于 80' },
+      { itemKey: 'DEV01*01*RMS', level: '注意', y: 60, label: '注意', triple: 'DEV01·01·RMS', condition: '大于 60' },
     ]
     const option = buildChartOption({
       series: [{ item, times: [1, 2], values: [10, 20] }],
@@ -63,11 +83,15 @@ describe('buildChartOption', () => {
     expect(option.series).toHaveLength(1)
     expect(option.series[0]).toEqual(expect.objectContaining({
       type: 'line',
-      name: 'RMS',
+      name: 'DEV01·01·RMS',
+      showSymbol: false,
+      symbol: 'none',
       data: [[1, 10], [2, 20]],
     }))
+    expect(option.legend.show).toBe(true)
+    expect(option.legend.data).toEqual(['DEV01·01·RMS'])
 
-    const markLine = (option.series[0] as { markLine: { data: Array<{ yAxis: number; lineStyle: { type: string; color: string } }> } }).markLine
+    const markLine = (option.series[0] as { markLine: { data: Array<{ yAxis: number; hover: string; lineStyle: { type: string; color: string } }> } }).markLine
     expect(markLine.data).toHaveLength(3)
     expect(markLine.data.every(d => d.lineStyle.type === 'dashed')).toBe(true)
     expect(markLine.data.map(d => d.lineStyle.color)).toEqual([
@@ -76,7 +100,28 @@ describe('buildChartOption', () => {
       defaultTokens.notice,
     ])
     expect(markLine.data.map(d => d.yAxis)).toEqual([100, 80, 60])
+    expect(markLine.data[0]!.hover).toBe('DEV01·01·RMS<br/>条件：大于 100')
     expect(option.color).toEqual(defaultTokens.series)
+  })
+
+  it('names series as deviceCode·pointName·displayName', () => {
+    const named: TrendItemIdentity = {
+      deviceCode: 'MTR01',
+      pointId: '02',
+      kpiId: 'RMS',
+      pointName: '电机负荷端2H',
+      displayName: '低频加速度RMS',
+    }
+    const option = buildChartOption({
+      series: [{ item: named, times: [1], values: [1] }],
+      showThresholds: false,
+      marks: [],
+      themeTokens: defaultTokens,
+    })
+    expect(option.series[0]).toEqual(expect.objectContaining({
+      name: 'MTR01·电机负荷端2H·低频加速度RMS',
+    }))
+    expect(option.legend.data).toEqual(['MTR01·电机负荷端2H·低频加速度RMS'])
   })
 })
 

@@ -1,9 +1,19 @@
 import { DEFAULT_WINDOW_MS } from './types'
 
-const HOUR = 60 * 60 * 1000
+const MINUTE = 60 * 1000
+const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
+const FIGURE_SPACE = '\u2007'
+
+export function padPresetLabel(label: string): string {
+  return label.replace(/^(\d+)/, n => n.padStart(2, FIGURE_SPACE))
+}
+
 export const TIME_PRESETS: { id: string; label: string; ms: number }[] = [
+  { id: '5m', label: '5分钟', ms: 5 * MINUTE },
+  { id: '10m', label: '10分钟', ms: 10 * MINUTE },
+  { id: '30m', label: '30分钟', ms: 30 * MINUTE },
   { id: '2h', label: '2小时', ms: 2 * HOUR },
   { id: '8h', label: '8小时', ms: 8 * HOUR },
   { id: '24h', label: '24小时', ms: 24 * HOUR },

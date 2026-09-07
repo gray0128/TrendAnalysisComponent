@@ -11,6 +11,14 @@ import { fetchAggregateTrend } from '../api/trend'
 import { fetchEnabledThresholds } from '../api/thresholds'
 import { resolveTheme } from '../types'
 import type { PickerInput, Theme, TrendItemIdentity, TrendLoadInput } from '../types'
+import {
+  buildMultiDiagnoseUrl,
+  buildSingleDiagnoseUrl,
+  DIAGNOSE_MESSAGES,
+  openDiagnoseWindow,
+  planDiagnoseJump,
+  writeDeviceKpi,
+} from '../domain/diagnoseJump'
 import TrendQueryBar from './TrendQueryBar.vue'
 import TrendChart from './TrendChart.vue'
 import TrendPicker from './TrendPicker.vue'
@@ -21,6 +29,7 @@ const props = defineProps<{
   trend: TrendLoadInput
   picker?: PickerInput | null
   theme?: Theme
+  diagnoseBaseUrl?: string
 }>()
 
 const initialWindow = resolveTimeWindow(props.trend.startTimeMs, props.trend.endTimeMs)
@@ -38,6 +47,7 @@ let loadGeneration = 0
 let thresholdCacheKey: string | null = null
 
 const pickerNotice = ref('')
+const diagnoseNotice = ref('')
 const overflowNotice = computed(
   () => capSeries(props.trend.items).overflow > 0 || selectedOverflow.value,
 )
@@ -191,6 +201,25 @@ function onQuery() {
   void loadTrends()
 }
 
+function onDiagnose() {
+  const plan = planDiagnoseJump(selected.value)
+  if (!plan.ok) {
+    diagnoseNotice.value = plan.reason === 'cross-device'
+      ? DIAGNOSE_MESSAGES.crossDevice
+      : DIAGNOSE_MESSAGES.empty
+    return
+  }
+  const baseUrl = props.diagnoseBaseUrl?.trim() || '/ddsat/'
+  if (plan.mode === 'single') {
+    diagnoseNotice.value = ''
+    openDiagnoseWindow(buildSingleDiagnoseUrl(baseUrl, plan.item, startTimeMs.value, endTimeMs.value))
+    return
+  }
+  diagnoseNotice.value = plan.capped ? DIAGNOSE_MESSAGES.capped : ''
+  const json = writeDeviceKpi(plan.items)
+  openDiagnoseWindow(buildMultiDiagnoseUrl(baseUrl, plan.deviceCode), json)
+}
+
 function onUpdateSelected(items: TrendItemIdentity[]) {
   selected.value = items
   void loadTrends()
@@ -225,6 +254,7 @@ watch(resolvedTheme, () => {
         @change="onWindowChange"
         @query="onQuery"
       />
+      <button type="button" class="trend-diagnose-btn" @click="onDiagnose">诊断分析</button>
       <label class="dit-threshold">
         <input v-model="showThresholds" type="checkbox">
         阈值线
@@ -232,6 +262,7 @@ watch(resolvedTheme, () => {
     </div>
     <p v-if="overflowNotice" class="dit-notice">最多加载 8 个数据项，其余未加载</p>
     <p v-if="pickerNotice" class="dit-notice">{{ pickerNotice }}</p>
+    <p v-if="diagnoseNotice" class="dit-notice">{{ diagnoseNotice }}</p>
     <p v-if="failedKeys.length" class="dit-failed">
       {{ failedKeys.join('、') }} 加载失败
     </p>
@@ -240,6 +271,7 @@ watch(resolvedTheme, () => {
       <TrendPicker
         :candidates="candidates"
         :selected="selected"
+        :grouped="picker?.type === 'device'"
         @update:selected="onUpdateSelected"
       />
     </div>
