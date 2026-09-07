@@ -1,6 +1,6 @@
 {
   "name": "@gray0128/trend-analysis-component",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vue 3 数据项历史趋势分析组件",
   "author": "gray0128",
   "license": "MIT",
