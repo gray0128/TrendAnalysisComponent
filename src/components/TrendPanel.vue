@@ -226,7 +226,8 @@ function onDiagnose() {
   const baseUrl = props.diagnoseBaseUrl?.trim() || '/ddsat/'
   if (plan.mode === 'single') {
     diagnoseNotice.value = ''
-    openDiagnoseWindow(buildSingleDiagnoseUrl(baseUrl, plan.item, startTimeMs.value, endTimeMs.value))
+    const json = writeDeviceKpi([plan.item], startTimeMs.value, endTimeMs.value)
+    openDiagnoseWindow(buildSingleDiagnoseUrl(baseUrl, plan.item, startTimeMs.value, endTimeMs.value), json)
     return
   }
   diagnoseNotice.value = plan.capped ? DIAGNOSE_MESSAGES.capped : ''

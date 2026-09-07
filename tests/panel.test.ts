@@ -350,7 +350,7 @@ describe('TrendPanel', () => {
     expect(seriesData(wrapper)).toEqual([[[1, 10]]])
   })
 
-  it('opens diagnose analysis with a triple URL for a single selected item', async () => {
+  it('opens diagnose analysis with a triple URL for a single selected item and stores deviceKpi', async () => {
     const open = vi.fn(() => null)
     vi.stubGlobal('open', open)
     const wrapper = mount(TrendPanel, {
@@ -365,6 +365,15 @@ describe('TrendPanel', () => {
       '/ddsat/#/comprehensiveTrend/device/DEV?origin=pms&deviceCode=DEV&pointId=01&collectKpiId=KPI_0&st=10&et=20',
       '_blank',
     )
+    const stored = JSON.parse(sessionStorage.getItem('deviceKpi') || '[]')
+    expect(stored).toHaveLength(1)
+    expect(stored[0]).toMatchObject({
+      deviceCode: 'DEV',
+      pointId: '01',
+      kpiId: 'KPI_0',
+      startTime: 10,
+      endTime: 20,
+    })
     vi.unstubAllGlobals()
   })
 
