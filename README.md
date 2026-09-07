@@ -49,7 +49,7 @@ const theme: Theme = 'remote-blue'
 </template>
 ```
 
-也可使用包内可选外壳 `TrendDrawer`（缺省抽屉，`widthPercent` 为页面宽度百分比）/ `TrendModal`（`size`：`default` / `large` / `xlarge` / `fullscreen`）。
+也可使用包内可选外壳 `TrendDrawer`（缺省抽屉，`widthPercent` 为页面宽度百分比）/ `TrendModal`（`size`：`1040*720`（缺省） / `1280*800` / `fullscreen`）。
 
 未传时间时，默认最近 2 小时。待选参数为空则不渲染待选区域。
 

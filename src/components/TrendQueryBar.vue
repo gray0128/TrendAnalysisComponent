@@ -124,5 +124,6 @@ function onQuery() {
         @click="onShift(1)"
       >后移</button>
     </div>
+    <slot />
   </div>
 </template>

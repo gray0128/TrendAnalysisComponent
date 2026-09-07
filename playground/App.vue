@@ -91,9 +91,8 @@ function onModalSize(size: string) {
 }
 
 const modalSizeLabels: Record<ModalSize, string> = {
-  default: '默认',
-  large: '大',
-  xlarge: '更大',
+  '1040*720': '1040*720',
+  '1280*800': '1280*800',
   fullscreen: '全屏',
 }
 </script>

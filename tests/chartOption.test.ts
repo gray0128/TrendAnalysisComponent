@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildChartOption,
   defaultTokens,
+  formatAxisTime,
   parseAggregateData,
   readThemeTokens,
 } from '../src/domain/chartOption'
@@ -173,6 +174,59 @@ describe('buildChartOption', () => {
       name: 'MTR01·电机负荷端2H·低频加速度RMS',
     }))
     expect(option.legend.data).toEqual(['MTR01·电机负荷端2H·低频加速度RMS'])
+  })
+
+  it('formats xAxis with full datetime points and sets min/max bounds', () => {
+    const start = 1777032984000
+    const end = start + 2 * 3600 * 1000
+    const option = buildChartOption({
+      series: [],
+      showThresholds: false,
+      marks: [],
+      themeTokens: defaultTokens,
+      startTimeMs: start,
+      endTimeMs: end,
+    })
+    expect(option.xAxis.type).toBe('time')
+    expect(option.xAxis.min).toBe(start)
+    expect(option.xAxis.max).toBe(end)
+    expect(typeof option.xAxis.axisLabel.formatter).toBe('function')
+    expect(option.xAxis.axisLabel.formatter(start)).toContain('\n')
+    expect(option.xAxis.axisLabel.formatter(start)).toMatch(/^\d{4}-\d{2}-\d{2}\n\d{2}:\d{2}:\d{2}$/)
+  })
+
+  it('configures Y-axis slider dataZoom on the right edge and inside zoom', () => {
+    const option = buildChartOption({
+      series: [],
+      showThresholds: false,
+      marks: [],
+      themeTokens: defaultTokens,
+    })
+    expect(option.dataZoom).toHaveLength(2)
+    const slider = option.dataZoom.find((dz: { type: string }) => dz.type === 'slider')
+    expect(slider).toEqual(expect.objectContaining({
+      type: 'slider',
+      yAxisIndex: 0,
+      right: 12,
+      top: 44,
+      bottom: 80,
+      filterMode: 'none',
+    }))
+    const inside = option.dataZoom.find((dz: { type: string }) => dz.type === 'inside')
+    expect(inside).toEqual(expect.objectContaining({
+      type: 'inside',
+      yAxisIndex: 0,
+      filterMode: 'none',
+    }))
+    expect(option.grid.right).toBeGreaterThanOrEqual(68)
+  })
+})
+
+describe('formatAxisTime', () => {
+  it('formats timestamp to YYYY-MM-DD\\nHH:mm:ss', () => {
+    const ms = new Date(2026, 8, 7, 18, 6, 30).getTime()
+    expect(formatAxisTime(ms)).toBe('2026-09-07\n18:06:30')
+    expect(formatAxisTime(NaN)).toBe('')
   })
 })
 

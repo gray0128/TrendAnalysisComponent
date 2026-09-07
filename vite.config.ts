@@ -4,7 +4,7 @@ import dts from 'vite-plugin-dts'
 import { fileURLToPath, URL } from 'node:url'
 
 /** 本地开发后端。切换环境只改这一处。 */
-const PROXY_TARGET = 'http://10.26.105.186'
+const PROXY_TARGET = 'http://10.26.105.180:5016'
 
 function proxyAll(contexts: string[]) {
   return Object.fromEntries(

@@ -69,6 +69,8 @@ function emptyOption() {
     showThresholds: false,
     marks: [],
     themeTokens: readThemeTokens(rootEl.value),
+    startTimeMs: startTimeMs.value,
+    endTimeMs: endTimeMs.value,
   })
 }
 
@@ -84,6 +86,8 @@ function rebuildOption() {
     showThresholds: showThresholds.value,
     marks: thresholdMarks.value,
     themeTokens: readThemeTokens(rootEl.value),
+    startTimeMs: startTimeMs.value,
+    endTimeMs: endTimeMs.value,
   })
 }
 
@@ -263,13 +267,14 @@ watch(resolvedTheme, () => {
         :end-time-ms="endTimeMs"
         @change="onWindowChange"
         @query="onQuery"
-      />
-      <button type="button" class="trend-diagnose-btn" @click="onDiagnose">诊断分析</button>
-      <label class="dit-threshold">
-        <input v-model="showThresholds" type="checkbox">
-        <span class="dit-switch" aria-hidden="true" />
-        阈值线
-      </label>
+      >
+        <button type="button" class="trend-diagnose-btn" @click="onDiagnose">诊断分析</button>
+        <label class="dit-threshold">
+          <input v-model="showThresholds" type="checkbox">
+          <span class="dit-switch" aria-hidden="true" />
+          阈值线
+        </label>
+      </TrendQueryBar>
     </div>
     <p v-if="overflowNotice" class="dit-notice">最多加载 {{ MAX_TREND_SERIES }} 个数据项，其余未加载</p>
     <p v-if="emptyItemsNotice" class="dit-notice">{{ emptyItemsNotice }}</p>

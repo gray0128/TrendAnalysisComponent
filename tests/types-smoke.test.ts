@@ -4,6 +4,7 @@ import {
   DEFAULT_WINDOW_MS,
   AGGREGATE_FUNC,
   DEFAULT_DRAWER_WIDTH_PERCENT,
+  DEFAULT_MODAL_SIZE,
   clampDrawerWidthPercent,
   resolveModalSize,
   resolveShellVariant,
@@ -29,11 +30,16 @@ describe('shell options', () => {
     expect(clampDrawerWidthPercent(140)).toBe(100)
   })
 
-  it('resolves modal size to default, large, xlarge, or fullscreen', () => {
-    expect(resolveModalSize(undefined)).toBe('default')
-    expect(resolveModalSize('large')).toBe('large')
-    expect(resolveModalSize('xlarge')).toBe('xlarge')
+  it('resolves modal size to 1040*720, 1280*800, or fullscreen with 1040*720 default', () => {
+    expect(DEFAULT_MODAL_SIZE).toBe('1040*720')
+    expect(resolveModalSize(undefined)).toBe('1040*720')
+    expect(resolveModalSize('1040*720')).toBe('1040*720')
+    expect(resolveModalSize('1280*800')).toBe('1280*800')
     expect(resolveModalSize('fullscreen')).toBe('fullscreen')
-    expect(resolveModalSize('huge')).toBe('default')
+    // backward compatibility
+    expect(resolveModalSize('large')).toBe('1040*720')
+    expect(resolveModalSize('xlarge')).toBe('1280*800')
+    expect(resolveModalSize('default')).toBe('1040*720')
+    expect(resolveModalSize('huge')).toBe('1040*720')
   })
 })

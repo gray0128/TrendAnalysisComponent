@@ -73,6 +73,8 @@ export interface BuildChartOptionInput {
   showThresholds: boolean
   marks: ThresholdMark[]
   themeTokens: ThemeTokens
+  startTimeMs?: number
+  endTimeMs?: number
 }
 
 function seriesName(item: TrendItemIdentity): string {
@@ -119,6 +121,22 @@ function formatTooltipTime(ms: number): string {
   const d = new Date(ms)
   if (!Number.isFinite(d.getTime())) return ''
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+}
+
+export function formatAxisTime(ms: number): string {
+  const d = new Date(ms)
+  if (!Number.isFinite(d.getTime())) return ''
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}\n${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+}
+
+function hexToRgba(color: string, alpha: number): string {
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+    const r = parseInt(color.slice(1, 3), 16)
+    const g = parseInt(color.slice(3, 5), 16)
+    const b = parseInt(color.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+  return color
 }
 
 function tooltipTimeMs(params: unknown): number | null {
@@ -180,12 +198,20 @@ export function buildChartOption(input: BuildChartOptionInput) {
     backgroundColor: 'transparent',
     animationDuration: 360,
     animationEasing: 'cubicOut',
-    grid: { top: 44, right: 56, bottom: 24, left: 12, containLabel: true },
+    grid: { top: 44, right: 68, bottom: 42, left: 12, containLabel: true },
     xAxis: {
       type: 'time',
+      min: isFiniteNumber(input.startTimeMs) ? input.startTimeMs : undefined,
+      max: isFiniteNumber(input.endTimeMs) ? input.endTimeMs : undefined,
       axisTick: { show: false },
       axisLine: { lineStyle: { color: themeTokens.chartGrid } },
-      axisLabel: { ...axisText, hideOverlap: true },
+      axisLabel: {
+        ...axisText,
+        hideOverlap: true,
+        lineHeight: 15,
+        align: 'center',
+        formatter: (value: number) => formatAxisTime(value),
+      },
       splitLine: { show: false },
     },
     yAxis: {
@@ -198,6 +224,39 @@ export function buildChartOption(input: BuildChartOptionInput) {
       splitLine: { lineStyle: { color: themeTokens.chartGrid, type: 'dashed' } },
       splitNumber: 4,
     },
+    dataZoom: [
+      {
+        type: 'slider',
+        yAxisIndex: 0,
+        right: 12,
+        top: 44,
+        bottom: 80,
+        width: 16,
+        filterMode: 'none',
+        showDataShadow: false,
+        borderColor: themeTokens.chartGrid,
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        fillerColor: hexToRgba(themeTokens.chartAccent, 0.18),
+        handleSize: '100%',
+        handleStyle: {
+          color: themeTokens.chartAccent,
+          borderColor: themeTokens.chartAccent,
+        },
+        moveHandleStyle: {
+          color: themeTokens.chartAccent,
+        },
+        textStyle: {
+          color: themeTokens.chartText,
+          fontSize: 10,
+        },
+        brushSelect: false,
+      },
+      {
+        type: 'inside',
+        yAxisIndex: 0,
+        filterMode: 'none',
+      },
+    ],
     legend: {
       show: legendData.length > 0,
       data: legendData,

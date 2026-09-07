@@ -32,13 +32,15 @@ export function clampDrawerWidthPercent(value?: number | null): number {
   )
 }
 
-export type ModalSize = 'default' | 'large' | 'xlarge' | 'fullscreen'
+export type ModalSize = '1040*720' | '1280*800' | 'fullscreen'
 
-export const MODAL_SIZES: readonly ModalSize[] = ['default', 'large', 'xlarge', 'fullscreen']
+export const MODAL_SIZES: readonly ModalSize[] = ['1040*720', '1280*800', 'fullscreen']
+export const DEFAULT_MODAL_SIZE: ModalSize = '1040*720'
 
 export function resolveModalSize(size?: string | null): ModalSize {
-  if (MODAL_SIZES.includes(size as ModalSize)) return size as ModalSize
-  return 'default'
+  if (size === '1280*800' || size === 'xlarge') return '1280*800'
+  if (size === 'fullscreen') return 'fullscreen'
+  return DEFAULT_MODAL_SIZE
 }
 
 export function resolveShellVariant(variant?: string | null): ShellVariant {
