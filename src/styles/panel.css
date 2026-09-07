@@ -475,7 +475,7 @@
 
 .trend-picker__group {
   display: grid;
-  grid-template-columns: minmax(9em, 14em) 1fr;
+  grid-template-columns: minmax(9em, 16em) 1fr;
   align-items: start;
   gap: 6px 16px;
   padding: 8px 0;
@@ -494,13 +494,15 @@
 }
 
 .trend-picker__group-title {
-  flex: 0 0 auto;
+  min-width: 0;
   padding-top: 4px;
-  white-space: nowrap;
+  line-height: 1.4;
   color: var(--text);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 .trend-picker__items {
