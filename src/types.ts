@@ -20,7 +20,7 @@ export type ShellVariant = 'drawer' | 'modal'
 
 export const SHELL_VARIANTS: readonly ShellVariant[] = ['drawer', 'modal']
 
-export const DEFAULT_DRAWER_WIDTH_PERCENT = 70
+export const DEFAULT_DRAWER_WIDTH_PERCENT = 80
 export const MIN_DRAWER_WIDTH_PERCENT = 20
 export const MAX_DRAWER_WIDTH_PERCENT = 100
 

@@ -22,6 +22,7 @@ describe('shell options', () => {
     expect(resolveShellVariant(undefined)).toBe('drawer')
     expect(resolveShellVariant('modal')).toBe('modal')
     expect(resolveShellVariant('popup')).toBe('drawer')
+    expect(DEFAULT_DRAWER_WIDTH_PERCENT).toBe(80)
     expect(clampDrawerWidthPercent(undefined)).toBe(DEFAULT_DRAWER_WIDTH_PERCENT)
     expect(clampDrawerWidthPercent(55.4)).toBe(55)
     expect(clampDrawerWidthPercent(5)).toBe(20)

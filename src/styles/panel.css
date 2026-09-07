@@ -17,9 +17,22 @@
   color-scheme: inherit;
 }
 
+.dit-drawer,
+.dit-modal {
+  display: grid;
+  grid-template: 1fr / 1fr;
+}
+
 .dit-drawer .dit-panel,
 .dit-modal .dit-panel {
-  min-height: 100%;
+  grid-area: 1 / 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 52px;
+}
+
+.dit-drawer .dit-panel {
+  height: 100%;
 }
 
 .dit-shell {
@@ -40,9 +53,9 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 70%;
+  width: 80%;
   max-width: 100%;
-  overflow: auto;
+  overflow: hidden;
   background: var(--surface-drawer);
   box-shadow: var(--drawer-shadow);
   border-left: 1px solid var(--drawer-border);
@@ -50,7 +63,7 @@
 
 .dit-modal {
   position: absolute;
-  overflow: auto;
+  overflow: hidden;
   background: var(--surface-panel);
   box-shadow: var(--panel-shadow);
   border: 1px solid var(--glass-border);
@@ -123,13 +136,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
+  gap: 10px 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line-subtle);
 }
 
 .dit-root .dit-threshold {
   margin-left: auto;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -214,7 +228,7 @@
   align-items: center;
   gap: 10px 12px;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
 }
 
 .trend-query-bar__times,
@@ -437,16 +451,30 @@
 
 .trend-picker__filters {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-wrap: nowrap;
+  align-items: flex-end;
   gap: 8px 12px;
   margin-bottom: 4px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line-subtle);
 }
 
+.dit-root .trend-picker__filters > label {
+  flex: 0 0 auto;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.trend-picker__filters > label span {
+  white-space: nowrap;
+}
+
 .trend-picker__filters input[type='text'] {
   width: 148px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .trend-picker__aggregates {
@@ -562,6 +590,7 @@
 .dit-root input[type='text'],
 .dit-root select,
 .dit-root button {
+  box-sizing: border-box;
   height: var(--control-height);
   border: 1px solid var(--control-border);
   background: var(--control-bg);
@@ -645,6 +674,27 @@
   filter: brightness(0.96);
 }
 
+.dit-root .dit-shell-close {
+  grid-area: 1 / 1;
+  justify-self: end;
+  align-self: start;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  margin: 12px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.dit-root .dit-shell-close:hover {
+  color: var(--text);
+  border-color: var(--focus-ring);
+}
+
 .dit-root input[type='checkbox'] {
   accent-color: var(--accent);
 }
@@ -658,6 +708,11 @@
   .dit-panel {
     padding: 12px;
     gap: 10px;
+  }
+
+  .dit-drawer .dit-panel,
+  .dit-modal .dit-panel {
+    padding-right: 44px;
   }
 
   .dit-root .dit-threshold {
@@ -676,16 +731,17 @@
     border-left: 0;
   }
 
-  .dit-root .trend-picker__filters label {
+  .trend-picker__filters {
+    flex-wrap: wrap;
+  }
+
+  .dit-root .trend-picker__filters > label {
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 4px;
+    flex: 1 1 100%;
   }
 
   .trend-picker__filters input[type='text'] {
     width: 100%;
-    min-width: 0;
   }
 
   .trend-picker__meta {

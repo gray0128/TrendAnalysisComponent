@@ -32,6 +32,12 @@ const resolvedTheme = computed(() =>
   <div class="dit-root dit-shell" :data-theme="resolvedTheme">
     <div class="dit-drawer-mask" @click="emit('close')" />
     <aside class="dit-drawer" :style="{ width: drawerWidth }">
+      <button
+        type="button"
+        class="dit-shell-close"
+        aria-label="关闭"
+        @click="emit('close')"
+      >×</button>
       <TrendPanel
         :trend="trend"
         :picker="picker"

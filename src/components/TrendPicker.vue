@@ -124,10 +124,10 @@ function onChange(item: TrendItemIdentity, event: Event) {
 <template>
   <div class="trend-picker" :class="{ 'trend-picker--grouped': grouped }">
     <div v-if="grouped" class="trend-picker__filters">
-      <label>测点编号 <input v-model="filters.pointId" type="text"></label>
-      <label>测点名称 <input v-model="filters.pointName" type="text"></label>
-      <label>数据项 <input v-model="filters.kpiId" type="text"></label>
-      <label>数据项展示名称 <input v-model="filters.displayName" type="text"></label>
+      <label><span>测点编号</span> <input v-model="filters.pointId" type="text"></label>
+      <label><span>测点名称</span> <input v-model="filters.pointName" type="text"></label>
+      <label><span>数据项</span> <input v-model="filters.kpiId" type="text"></label>
+      <label><span>数据项展示名称</span> <input v-model="filters.displayName" type="text"></label>
       <div class="trend-picker__actions">
         <p class="trend-picker__meta">已选 {{ selected.length }}/{{ MAX_TREND_SERIES }}</p>
         <button

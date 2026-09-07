@@ -29,6 +29,7 @@ const debug = reactive({
 })
 
 const panelKey = ref(0)
+const shellOpen = ref(true)
 
 const trend = computed<TrendLoadInput>(() => ({
   items: debug.showPicker
@@ -59,6 +60,7 @@ function persist() {
 
 function apply() {
   persist()
+  shellOpen.value = true
   panelKey.value += 1
 }
 
@@ -74,6 +76,7 @@ function onShowPicker(show: boolean) {
 
 function onShell(variant: string) {
   debug.shell = resolveShellVariant(variant)
+  shellOpen.value = true
   persist()
 }
 
@@ -161,8 +164,14 @@ const modalSizeLabels: Record<ModalSize, string> = {
       <span class="pg-hint">{{ debug.mode === 'mock' ? '不发真实请求' : '经 vite proxy 转发' }}</span>
     </header>
     <main class="pg-main">
+      <button
+        v-if="!shellOpen"
+        type="button"
+        class="pg-open"
+        @click="shellOpen = true"
+      >打开趋势</button>
       <TrendDrawer
-        v-if="debug.shell === 'drawer'"
+        v-else-if="debug.shell === 'drawer'"
         :key="panelKey"
         :trend="trend"
         :picker="picker"
@@ -170,6 +179,7 @@ const modalSizeLabels: Record<ModalSize, string> = {
         :theme="debug.theme"
         :width-percent="debug.drawerWidthPercent"
         diagnose-base-url="/ddsat/"
+        @close="shellOpen = false"
       />
       <TrendModal
         v-else
@@ -180,6 +190,7 @@ const modalSizeLabels: Record<ModalSize, string> = {
         :theme="debug.theme"
         :size="debug.modalSize"
         diagnose-base-url="/ddsat/"
+        @close="shellOpen = false"
       />
     </main>
   </div>
@@ -234,5 +245,15 @@ html, body, #app { height: 100%; margin: 0; }
   position: absolute;
   inset: 12px;
   z-index: 1;
+}
+.pg-open {
+  margin: auto;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text);
+  border-radius: var(--radius-control);
+  cursor: pointer;
 }
 </style>
