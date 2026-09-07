@@ -1,0 +1,103 @@
+# Review package: ecef49f3fccad0d23ae21852d628b943a232879d..cc05ba977c308bdd15e345acc405662249bb2f3d
+
+## Commits
+cc05ba9 feat: map device KPI rows and drop signal items
+
+## Files changed
+ src/domain/mapDataItem.ts | 48 +++++++++++++++++++++++++++++++++++++++++++++++
+ tests/mapDataItem.test.ts | 32 +++++++++++++++++++++++++++++++
+ 2 files changed, 80 insertions(+)
+
+## Diff
+diff --git a/src/domain/mapDataItem.ts b/src/domain/mapDataItem.ts
+new file mode 100644
+index 0000000..550d69b
+--- /dev/null
++++ b/src/domain/mapDataItem.ts
+@@ -0,0 +1,48 @@
++import type { TrendItemIdentity } from '../types'
++
++function resolveKpiId(row: any): string {
++  if (row.collectKpiId != null) {
++    return String(row.collectKpiId)
++  }
++  if (row.kpiId != null) {
++    const kpiIdStr = String(row.kpiId)
++    if (!/^\d+$/.test(kpiIdStr)) {
++      return kpiIdStr
++    }
++  }
++  if (row.kpiCode != null) {
++    return String(row.kpiCode)
++  }
++  return String(row.kpiId ?? row.kpiCode ?? '')
++}
++
++export function mapKpiRowToIdentity(
++  row: any,
++  deviceCode: string,
++  pointNo: string,
++): TrendItemIdentity | null {
++  if (row?.signal === true) return null
++  return {
++    deviceCode,
++    pointId: row.pointNo ?? pointNo,
++    kpiId: resolveKpiId(row),
++    displayName: row.dataItemDisplayName ?? row.kpiId,
++    pointName: undefined,
++    unit: undefined,
++  }
++}
++
++export function mapAllDateList(
++  allDateList: Record<string, any[] | undefined>,
++  deviceCode: string,
++): TrendItemIdentity[] {
++  const result: TrendItemIdentity[] = []
++  for (const pointNo of Object.keys(allDateList ?? {})) {
++    const rows = Array.isArray(allDateList[pointNo]) ? allDateList[pointNo]! : []
++    for (const row of rows) {
++      const identity = mapKpiRowToIdentity(row, deviceCode, pointNo)
++      if (identity) result.push(identity)
++    }
++  }
++  return result
++}
+diff --git a/tests/mapDataItem.test.ts b/tests/mapDataItem.test.ts
+new file mode 100644
+index 0000000..b6374e1
+--- /dev/null
++++ b/tests/mapDataItem.test.ts
+@@ -0,0 +1,32 @@
++import { describe, expect, it } from 'vitest'
++import { mapAllDateList, mapKpiRowToIdentity } from '../src/domain/mapDataItem'
++
++describe('mapDataItem', () => {
++  it('drops signal rows and keeps collect identity', () => {
++    const list = mapAllDateList({
++      '01': [
++        { kpiId: 'RMS', dataItemDisplayName: '速度有效值', signal: false, pointNo: '01' },
++        { kpiId: 'WAVE', signal: true, pointNo: '01' },
++      ],
++    }, 'DEV01')
++    expect(list).toEqual([
++      { deviceCode: 'DEV01', pointId: '01', kpiId: 'RMS', displayName: '速度有效值', pointName: undefined, unit: undefined },
++    ])
++  })
++
++  it('prefers collectKpiId over numeric kpiId', () => {
++    const identity = mapKpiRowToIdentity(
++      { kpiId: '12345', collectKpiId: 'VEL_RMS', dataItemDisplayName: '速度', signal: false, pointNo: '02' },
++      'DEV01',
++      '02',
++    )
++    expect(identity).toEqual({
++      deviceCode: 'DEV01',
++      pointId: '02',
++      kpiId: 'VEL_RMS',
++      displayName: '速度',
++      pointName: undefined,
++      unit: undefined,
++    })
++  })
++})

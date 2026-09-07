@@ -1,0 +1,151 @@
+# Review package: 0ea908f8402c8213548685381dbae0f36a646dd8..a0dd4accf7f0a308442b1ea77fb7cc5c117c4ccb
+
+## Commits
+a0dd4ac feat: add data-item picker with 8-item cap
+
+## Files changed
+ src/components/TrendPicker.vue | 62 ++++++++++++++++++++++++++++++++++++++++++
+ src/styles/panel.css           | 17 ++++++++++++
+ tests/picker.test.ts           | 33 ++++++++++++++++++++++
+ 3 files changed, 112 insertions(+)
+
+## Diff
+diff --git a/src/components/TrendPicker.vue b/src/components/TrendPicker.vue
+new file mode 100644
+index 0000000..42f323b
+--- /dev/null
++++ b/src/components/TrendPicker.vue
+@@ -0,0 +1,62 @@
++<script setup lang="ts">
++import { computed, ref } from 'vue'
++import { itemKey } from '../domain/identity'
++import { MAX_TREND_SERIES } from '../types'
++import type { TrendItemIdentity } from '../types'
++import '../styles/panel.css'
++
++const props = defineProps<{
++  candidates: TrendItemIdentity[]
++  selected: TrendItemIdentity[]
++}>()
++
++const emit = defineEmits<{
++  'update:selected': [items: TrendItemIdentity[]]
++}>()
++
++const capNotice = ref(false)
++
++const selectedKeys = computed(() => new Set(props.selected.map(itemKey)))
++
++function isSelected(item: TrendItemIdentity) {
++  return selectedKeys.value.has(itemKey(item))
++}
++
++function labelOf(item: TrendItemIdentity) {
++  return item.displayName || item.kpiId
++}
++
++function onChange(item: TrendItemIdentity, event: Event) {
++  const checked = (event.target as HTMLInputElement).checked
++  if (checked) {
++    if (isSelected(item)) return
++    if (props.selected.length >= MAX_TREND_SERIES) {
++      capNotice.value = true
++      return
++    }
++    capNotice.value = false
++    emit('update:selected', [...props.selected, item])
++    return
++  }
++  capNotice.value = false
++  emit('update:selected', props.selected.filter(s => itemKey(s) !== itemKey(item)))
++}
++</script>
++
++<template>
++  <div class="trend-picker">
++    <label
++      v-for="item in candidates"
++      :key="itemKey(item)"
++      class="trend-picker__item"
++    >
++      <input
++        type="checkbox"
++        :checked="isSelected(item)"
++        @change="onChange(item, $event)"
++      >
++      {{ labelOf(item) }}
++    </label>
++    <p v-if="capNotice" class="trend-picker__notice">最多选择 8 个数据项</p>
++  </div>
++</template>
+diff --git a/src/styles/panel.css b/src/styles/panel.css
+index 01c6dd7..6112265 100644
+--- a/src/styles/panel.css
++++ b/src/styles/panel.css
+@@ -8,10 +8,27 @@
+ .trend-query-bar input[type='datetime-local'],
+ .trend-query-bar select,
+ .trend-query-bar button {
+   font: inherit;
+ }
+ 
+ .trend-chart {
+   width: 100%;
+   height: 320px;
+ }
++
++.trend-picker {
++  display: flex;
++  flex-direction: column;
++  gap: 4px;
++}
++
++.trend-picker__item {
++  display: flex;
++  align-items: center;
++  gap: 6px;
++  font: inherit;
++}
++
++.trend-picker__notice {
++  margin: 4px 0 0;
++}
+diff --git a/tests/picker.test.ts b/tests/picker.test.ts
+new file mode 100644
+index 0000000..dc0a3fd
+--- /dev/null
++++ b/tests/picker.test.ts
+@@ -0,0 +1,33 @@
++import { describe, expect, it } from 'vitest'
++import { mount } from '@vue/test-utils'
++import TrendPicker from '../src/components/TrendPicker.vue'
++import type { TrendItemIdentity } from '../src/types'
++
++function item(i: number): TrendItemIdentity {
++  return {
++    deviceCode: 'DEV',
++    pointId: '01',
++    kpiId: `KPI_${i}`,
++    displayName: `数据项${i}`,
++  }
++}
++
++describe('TrendPicker', () => {
++  it('does not select a 9th item when 8 are already selected and shows cap message', async () => {
++    const candidates = Array.from({ length: 9 }, (_, i) => item(i))
++    const selected = candidates.slice(0, 8)
++    const wrapper = mount(TrendPicker, {
++      props: { candidates, selected },
++    })
++
++    const boxes = wrapper.findAll('input[type="checkbox"]')
++    expect(boxes).toHaveLength(9)
++    await boxes[8].setValue(true)
++
++    const emitted = wrapper.emitted('update:selected') ?? []
++    for (const [payload] of emitted) {
++      expect((payload as TrendItemIdentity[]).length).toBeLessThanOrEqual(8)
++    }
++    expect(wrapper.text()).toContain('最多选择 8 个数据项')
++  })
++})

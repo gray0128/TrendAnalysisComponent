@@ -1,0 +1,998 @@
+# Review package: 80f57dd2029daa2a740a15ab34f9ccade2ab2790..ff2500e046eaf9117ed5ecbe4e1219669d0c47b5
+
+## Commits
+ff2500e fix: apply CSS theme tokens and keep chart drawing when thresholds fail
+742c16a feat: add theme tokens, threshold toggle, and optional shells
+
+## Files changed
+ src/components/TrendChart.vue  |   4 +-
+ src/components/TrendDrawer.vue |  31 +++++++
+ src/components/TrendModal.vue  |  31 +++++++
+ src/components/TrendPanel.vue  |  74 ++++++++++++++---
+ src/domain/chartOption.ts      |  22 +++++
+ src/index.ts                   |   6 ++
+ src/plugin.ts                  |   2 +
+ src/styles/panel.css           |  41 +++++++++
+ src/styles/tokens.css          | 139 +++++++++++++++++++++++++++++++
+ src/types.ts                   |  10 +++
+ tests/chartOption.test.ts      |  35 +++++++-
+ tests/panel.test.ts            |  41 +++++++++
+ tests/theme.test.ts            | 183 +++++++++++++++++++++++++++++++++++++++++
+ 13 files changed, 605 insertions(+), 14 deletions(-)
+
+## Diff
+diff --git a/src/components/TrendChart.vue b/src/components/TrendChart.vue
+index 34daa8a..6fe1723 100644
+--- a/src/components/TrendChart.vue
++++ b/src/components/TrendChart.vue
+@@ -6,27 +6,27 @@ import '../styles/panel.css'
+ const props = defineProps<{
+   option: Record<string, unknown>
+ }>()
+ 
+ const el = ref<HTMLDivElement | null>(null)
+ let chart: echarts.ECharts | null = null
+ 
+ onMounted(() => {
+   if (!el.value) return
+   chart = echarts.init(el.value)
+-  chart.setOption(props.option)
++  chart.setOption(props.option, { notMerge: true })
+ })
+ 
+ watch(
+   () => props.option,
+   option => {
+-    chart?.setOption(option)
++    chart?.setOption(option, { notMerge: true })
+   },
+   { deep: true },
+ )
+ 
+ onBeforeUnmount(() => {
+   chart?.dispose()
+   chart = null
+ })
+ </script>
+ 
+diff --git a/src/components/TrendDrawer.vue b/src/components/TrendDrawer.vue
+new file mode 100644
+index 0000000..bbd2f41
+--- /dev/null
++++ b/src/components/TrendDrawer.vue
+@@ -0,0 +1,31 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++import { resolveTheme } from '../types'
++import type { PickerInput, Theme, TrendLoadInput } from '../types'
++import TrendPanel from './TrendPanel.vue'
++import '../styles/tokens.css'
++import '../styles/panel.css'
++
++const props = defineProps<{
++  trend: TrendLoadInput
++  picker?: PickerInput | null
++  theme?: Theme
++}>()
++
++const emit = defineEmits<{
++  close: []
++}>()
++
++const resolvedTheme = computed(() =>
++  resolveTheme(props.theme, document.documentElement.dataset.theme),
++)
++</script>
++
++<template>
++  <div class="dit-root dit-shell" :data-theme="resolvedTheme">
++    <div class="dit-drawer-mask" @click="emit('close')" />
++    <aside class="dit-drawer">
++      <TrendPanel :trend="trend" :picker="picker" :theme="theme" />
++    </aside>
++  </div>
++</template>
+diff --git a/src/components/TrendModal.vue b/src/components/TrendModal.vue
+new file mode 100644
+index 0000000..62772f6
+--- /dev/null
++++ b/src/components/TrendModal.vue
+@@ -0,0 +1,31 @@
++<script setup lang="ts">
++import { computed } from 'vue'
++import { resolveTheme } from '../types'
++import type { PickerInput, Theme, TrendLoadInput } from '../types'
++import TrendPanel from './TrendPanel.vue'
++import '../styles/tokens.css'
++import '../styles/panel.css'
++
++const props = defineProps<{
++  trend: TrendLoadInput
++  picker?: PickerInput | null
++  theme?: Theme
++}>()
++
++const emit = defineEmits<{
++  close: []
++}>()
++
++const resolvedTheme = computed(() =>
++  resolveTheme(props.theme, document.documentElement.dataset.theme),
++)
++</script>
++
++<template>
++  <div class="dit-root dit-shell" :data-theme="resolvedTheme">
++    <div class="dit-modal-mask" @click="emit('close')" />
++    <div class="dit-modal">
++      <TrendPanel :trend="trend" :picker="picker" :theme="theme" />
++    </div>
++  </div>
++</template>
+diff --git a/src/components/TrendPanel.vue b/src/components/TrendPanel.vue
+index 1608d2d..75265a6 100644
+--- a/src/components/TrendPanel.vue
++++ b/src/components/TrendPanel.vue
+@@ -1,53 +1,78 @@
+ <script setup lang="ts">
+ import { computed, ref, watch } from 'vue'
+ import { capSeries } from '../limits'
+ import { resolveTimeWindow } from '../time'
+ import { itemKey } from '../domain/identity'
+-import { buildChartOption, defaultTokens, parseAggregateData } from '../domain/chartOption'
++import { buildChartOption, parseAggregateData, readThemeTokens } from '../domain/chartOption'
+ import type { ChartSeriesInput } from '../domain/chartOption'
++import type { ThresholdMark } from '../domain/mapThreshold'
+ import { fetchDeviceDataItems } from '../api/dataItems'
+ import { fetchAggregateTrend } from '../api/trend'
++import { fetchEnabledThresholds } from '../api/thresholds'
++import { resolveTheme } from '../types'
+ import type { PickerInput, Theme, TrendItemIdentity, TrendLoadInput } from '../types'
+ import TrendQueryBar from './TrendQueryBar.vue'
+ import TrendChart from './TrendChart.vue'
+ import TrendPicker from './TrendPicker.vue'
++import '../styles/tokens.css'
+ import '../styles/panel.css'
+ 
+ const props = defineProps<{
+   trend: TrendLoadInput
+   picker?: PickerInput | null
+   theme?: Theme
+ }>()
+ 
+ const initialWindow = resolveTimeWindow(props.trend.startTimeMs, props.trend.endTimeMs)
+ const startTimeMs = ref(initialWindow.startTimeMs)
+ const endTimeMs = ref(initialWindow.endTimeMs)
+ const candidates = ref<TrendItemIdentity[]>([])
+ const selected = ref<TrendItemIdentity[]>([])
+ const showThresholds = ref(false)
+ const failedKeys = ref<string[]>([])
+-const chartOption = ref<Record<string, unknown>>(emptyOption())
++const loadedSeries = ref<ChartSeriesInput[]>([])
++const thresholdMarks = ref<ThresholdMark[]>([])
++const rootEl = ref<HTMLElement | null>(null)
+ const selectedOverflow = ref(false)
+ let loadGeneration = 0
++let thresholdCacheKey: string | null = null
+ 
+ const overflowNotice = computed(
+   () => capSeries(props.trend.items).overflow > 0 || selectedOverflow.value,
+ )
+ const hasPicker = computed(() => props.picker != null)
++const resolvedTheme = computed(() =>
++  resolveTheme(props.theme, document.documentElement.dataset.theme),
++)
+ 
+ function emptyOption() {
+   return buildChartOption({
+     series: [],
+     showThresholds: false,
+     marks: [],
+-    themeTokens: defaultTokens,
++    themeTokens: readThemeTokens(rootEl.value),
++  })
++}
++
++const chartOption = ref<Record<string, unknown>>(emptyOption())
++
++function marksKey(items: TrendItemIdentity[]) {
++  return items.map(itemKey).join('\0')
++}
++
++function rebuildOption() {
++  chartOption.value = buildChartOption({
++    series: loadedSeries.value,
++    showThresholds: showThresholds.value,
++    marks: thresholdMarks.value,
++    themeTokens: readThemeTokens(rootEl.value),
+   })
+ }
+ 
+ function matchSelected(cappedItems: TrendItemIdentity[]) {
+   const keys = new Set(cappedItems.map(itemKey))
+   return candidates.value.filter(item => keys.has(itemKey(item)))
+ }
+ 
+ async function hydrate() {
+   const generation = ++loadGeneration
+@@ -70,33 +95,55 @@ async function hydrate() {
+     nextCandidates = await fetchDeviceDataItems(picker.deviceCode)
+   } else {
+     nextCandidates = picker.items
+   }
+   if (generation !== loadGeneration) return
+   candidates.value = nextCandidates
+   selected.value = matchSelected(capped.items)
+   await loadTrends(generation)
+ }
+ 
++async function ensureThresholds(items: TrendItemIdentity[], generation: number) {
++  if (items.length === 0) {
++    thresholdMarks.value = []
++    thresholdCacheKey = null
++    return
++  }
++  if (!showThresholds.value) return
++  const key = marksKey(items)
++  if (thresholdCacheKey === key) return
++  try {
++    const marks = await fetchEnabledThresholds(items)
++    if (generation !== loadGeneration) return
++    thresholdCacheKey = key
++    thresholdMarks.value = marks
++  } catch {
++    // do not cache a failed fetch
++  }
++}
++
+ async function loadTrends(generation = ++loadGeneration) {
+   if (generation !== loadGeneration) return
+ 
+   const capped = capSeries(selected.value)
+   selectedOverflow.value = capped.overflow > 0
+   const items = capped.items
+   if (capped.overflow > 0) {
+     selected.value = items
+   }
+ 
+   if (items.length === 0) {
+     failedKeys.value = []
+-    chartOption.value = emptyOption()
++    loadedSeries.value = []
++    await ensureThresholds([], generation)
++    if (generation !== loadGeneration) return
++    rebuildOption()
+     return
+   }
+ 
+   const start = startTimeMs.value
+   const end = endTimeMs.value
+   const results = await Promise.all(items.map(async (item) => {
+     try {
+       const payload = await fetchAggregateTrend(item, start, end)
+       return { ok: true as const, item, parsed: parseAggregateData(payload) }
+     } catch {
+@@ -114,53 +161,58 @@ async function loadTrends(generation = ++loadGeneration) {
+         item: result.item,
+         times: result.parsed.times,
+         values: result.parsed.values,
+       })
+     } else {
+       failed.push(itemKey(result.item))
+     }
+   }
+ 
+   failedKeys.value = failed
+-  chartOption.value = buildChartOption({
+-    series,
+-    showThresholds: false,
+-    marks: [],
+-    themeTokens: defaultTokens,
+-  })
++  loadedSeries.value = series
++  await ensureThresholds(items, generation)
++  if (generation !== loadGeneration) return
++  rebuildOption()
+ }
+ 
+ function onWindowChange(next: { startTimeMs: number; endTimeMs: number }) {
+   startTimeMs.value = next.startTimeMs
+   endTimeMs.value = next.endTimeMs
+ }
+ 
+ function onQuery() {
+   void loadTrends()
+ }
+ 
+ function onUpdateSelected(items: TrendItemIdentity[]) {
+   selected.value = items
+   void loadTrends()
+ }
+ 
++watch(showThresholds, async (on) => {
++  if (on) {
++    await ensureThresholds(capSeries(selected.value).items, loadGeneration)
++  }
++  rebuildOption()
++})
++
+ watch(
+   () => [props.trend, props.picker] as const,
+   () => {
+     void hydrate()
+   },
+   { immediate: true, deep: true },
+ )
+ </script>
+ 
+ <template>
+-  <div class="dit-panel" :data-theme="theme">
++  <div ref="rootEl" class="dit-root dit-panel" :data-theme="resolvedTheme">
+     <div class="dit-query">
+       <TrendQueryBar
+         :start-time-ms="startTimeMs"
+         :end-time-ms="endTimeMs"
+         @change="onWindowChange"
+         @query="onQuery"
+       />
+       <label class="dit-threshold">
+         <input v-model="showThresholds" type="checkbox">
+         阈值线
+diff --git a/src/domain/chartOption.ts b/src/domain/chartOption.ts
+index 9dc0ad6..1400f1c 100644
+--- a/src/domain/chartOption.ts
++++ b/src/domain/chartOption.ts
+@@ -1,24 +1,45 @@
+ import { itemKey } from './identity'
+ import type { ThresholdMark } from './mapThreshold'
+ import type { TrendItemIdentity } from '../types'
+ 
+ export interface ThemeTokens {
+   danger: string
+   warning: string
+   notice: string
++  series: string[]
+ }
+ 
+ export const defaultTokens: ThemeTokens = {
+   danger: '#ff6b6b',
+   warning: '#ff8a2b',
+   notice: '#4d9eff',
++  series: ['#32b4dd', '#67d5ae', '#249fe0', '#ffbd61'],
++}
++
++const SERIES_VARS = ['--chart-series-1', '--chart-series-2', '--chart-series-3', '--chart-series-4'] as const
++
++export function readThemeTokens(el: Element | null | undefined): ThemeTokens {
++  if (!el) return defaultTokens
++  const style = getComputedStyle(el)
++  const css = (name: string) => style.getPropertyValue(name).trim()
++  const danger = css('--danger')
++  const warning = css('--warning')
++  const notice = css('--notice')
++  const series = SERIES_VARS.map(css)
++  if (!danger && !warning && !notice && series.every(c => !c)) return defaultTokens
++  return {
++    danger: danger || defaultTokens.danger,
++    warning: warning || defaultTokens.warning,
++    notice: notice || defaultTokens.notice,
++    series: series.map((c, i) => c || defaultTokens.series[i]),
++  }
+ }
+ 
+ export interface ChartSeriesInput {
+   item: TrendItemIdentity
+   times: number[]
+   values: (number | null)[]
+ }
+ 
+ export interface BuildChartOptionInput {
+   series: ChartSeriesInput[]
+@@ -45,20 +66,21 @@ export function parseAggregateData(payload: any): { times: number[]; values: (nu
+   return {
+     times: timestamps.map(t => Number(t) / 1e6),
+     values: rawValues as (number | null)[],
+   }
+ }
+ 
+ export function buildChartOption(input: BuildChartOptionInput) {
+   const { series, showThresholds, marks, themeTokens } = input
+ 
+   return {
++    color: themeTokens.series,
+     xAxis: { type: 'time' },
+     yAxis: { type: 'value' },
+     legend: { data: series.map(s => seriesName(s.item)) },
+     series: series.map(s => {
+       const key = itemKey(s.item)
+       const matchedMarks = showThresholds ? marks.filter(m => m.itemKey === key) : []
+       const option: Record<string, unknown> = {
+         type: 'line',
+         name: seriesName(s.item),
+         data: s.times.map((t, i) => [t, s.values[i] ?? null]),
+diff --git a/src/index.ts b/src/index.ts
+index 16174e1..5d476bd 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1,7 +1,13 @@
++import './styles/tokens.css'
++
+ export {
+   THEMES, MAX_TREND_SERIES, DEFAULT_WINDOW_MS, AGGREGATE_FUNC, RESERVE_DECIMAL,
++  resolveTheme,
+ } from './types'
+ export type {
+   Theme, TrendItemIdentity, TrendLoadInput, PickerInput, TrendRequest, PluginOptions,
+ } from './types'
++export { install, default } from './plugin'
+ export { default as TrendPanel } from './components/TrendPanel.vue'
++export { default as TrendDrawer } from './components/TrendDrawer.vue'
++export { default as TrendModal } from './components/TrendModal.vue'
+diff --git a/src/plugin.ts b/src/plugin.ts
+index 8f110a2..7b2ac53 100644
+--- a/src/plugin.ts
++++ b/src/plugin.ts
+@@ -1,9 +1,11 @@
+ import { setTrendRequest } from './api/http'
+ import type { PluginOptions } from './types'
+ 
+ export function install(
+   _app: { provide?: Function } | unknown,
+   options: PluginOptions,
+ ): void {
+   setTrendRequest(options.request)
+ }
++
++export default { install }
+diff --git a/src/styles/panel.css b/src/styles/panel.css
+index 90fdb41..480743f 100644
+--- a/src/styles/panel.css
++++ b/src/styles/panel.css
+@@ -30,20 +30,61 @@
+ }
+ 
+ .trend-picker__notice {
+   margin: 4px 0 0;
+ }
+ 
+ .dit-panel {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
++  color: var(--text);
++  background: var(--surface-panel);
++}
++
++.dit-shell {
++  position: fixed;
++  inset: 0;
++  z-index: 1000;
++}
++
++.dit-drawer-mask,
++.dit-modal-mask {
++  position: absolute;
++  inset: 0;
++  background: rgba(0, 0, 0, 0.45);
++}
++
++.dit-drawer {
++  position: absolute;
++  top: 0;
++  right: 0;
++  bottom: 0;
++  width: min(720px, 100%);
++  overflow: auto;
++  background: var(--surface-drawer);
++  box-shadow: var(--drawer-shadow);
++  border-left: 1px solid var(--drawer-border);
++}
++
++.dit-modal {
++  position: absolute;
++  top: 50%;
++  left: 50%;
++  transform: translate(-50%, -50%);
++  width: min(960px, 92vw);
++  max-height: 90vh;
++  overflow: auto;
++  background: var(--surface-panel);
++  box-shadow: var(--panel-shadow);
++  border: 1px solid var(--glass-border);
++  border-radius: var(--radius-panel);
+ }
+ 
+ .dit-query {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: center;
+   gap: 8px;
+ }
+ 
+ .dit-threshold {
+diff --git a/src/styles/tokens.css b/src/styles/tokens.css
+new file mode 100644
+index 0000000..a91cc40
+--- /dev/null
++++ b/src/styles/tokens.css
+@@ -0,0 +1,139 @@
++/* 变量作用域限定在组件根节点，避免污染宿主项目的全局样式。
++   默认使用智维蓝（remote-blue）主题；
++   同时提供 dark / light 覆盖。 */
++.dit-root,
++.dit-root[data-theme='remote-blue'] {
++  color-scheme: dark;
++  --bg-0: #091431; --bg-1: #0d1d3b; --bg-2: #132746; --bg-3: #1a3153;
++  --glass: rgba(24, 48, 82, .76); --glass-border: rgba(75, 115, 164, .48);
++  --text: #d7e0e8; --text-2: #9babc0; --text-3: #879bb5;
++  --accent: #249fe0; --accent-2: #55c5ec; --accent-glow: rgba(36,159,224,.3);
++  --cyan: #32b4dd; --cyan-dim: rgba(50,180,221,.13);
++  --select-caret-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23000' d='M1.8 3.2h6.4L5 7.4z'/%3E%3C/svg%3E");
++  --app-background: linear-gradient(180deg, #0a1734 0%, #071126 100%);
++  --sidebar-background: linear-gradient(180deg, #08152d, #060f22);
++  --sidebar-border: rgba(58, 111, 174, .34);
++  --line-subtle: rgba(65, 102, 148, .4); --line-strong: rgba(70, 128, 188, .58);
++  --control-bg: rgba(18, 38, 70, .9); --control-border: rgba(72, 106, 151, .72);
++  --surface-panel: rgba(22, 43, 75, .88); --surface-popover: #122746;
++  --surface-inset: rgba(12,29,57,.72); --surface-section: rgba(13,31,60,.76); --surface-section-head: rgba(25,51,86,.82);
++  --device-card-well: #08162f; --device-card-surface: #172f51; --device-card-metrics: #102440;
++  --device-card-border: rgba(89,145,201,.68); --device-card-divider: rgba(89,145,201,.4);
++  --device-card-shadow: 0 8px 20px rgba(0,5,20,.3), inset 0 1px 0 rgba(157,199,236,.1);
++  --device-card-hover-shadow: 0 12px 26px rgba(0,5,20,.4), inset 0 1px 0 rgba(157,199,236,.15);
++  --surface-drawer: linear-gradient(180deg, #132745, #0c1b35);
++  --surface-drawer-head: linear-gradient(180deg, rgba(22, 50, 88, .96), rgba(15, 35, 66, .88));
++  --surface-drawer-tabs: rgba(10, 28, 58, .72);
++  --table-header: #304767; --table-header-text: #d7e0e8; --focus-ring: #54c7ee; --control-focus-shadow: none;
++  --table-body: #132746; --table-row-hover: rgba(50,180,221,.08); --table-row-active: rgba(36,159,224,.12); --table-row-line: rgba(65,102,148,.28);
++  --table-sticky-hover: #1a3153; --table-sticky-active: #1a3153; --table-sticky-edge: rgba(70,128,188,.16);
++  --radius-control: 3px; --radius-panel: 4px;
++  --scrollbar-thumb: rgba(84,124,172,.62); --scrollbar-thumb-hover: rgba(84,124,172,.82); --scrollbar-track: rgba(12,29,57,.72);
++  --avatar-bg: linear-gradient(135deg, #1a4a78, #12325a); --avatar-border: rgba(68,170,236,.45); --avatar-text: var(--accent-2);
++  --select-panel-bg: var(--surface-popover);
++  --danger: #ff6b6b; --warning: #ff8a2b; --notice: #4d9eff;
++  --list-text-primary: #d7e0e8; --list-text-strong: #d7e0e8; --list-text-secondary: #a9b7ca; --list-text-muted: #879bb5; --list-text-link: #8dc7e5;
++  --list-state-success: #67d5ae; --list-state-warning: var(--warning); --list-state-danger: var(--danger); --list-state-notice: var(--notice); --list-state-muted: #879bb5;
++  --shell-sidebar-shadow: 6px 0 24px rgba(0,4,18,.34);
++  --shell-topbar-border: rgba(70,128,188,.58); --shell-topbar-background: linear-gradient(180deg, rgba(14,38,78,.98), rgba(9,25,55,.98)); --shell-topbar-shadow: 0 8px 26px rgba(0,5,22,.3), inset 0 -1px rgba(30,160,236,.08);
++  --shell-title: #f1f7ff; --shell-title-shadow: 0 0 18px rgba(54,161,225,.18);
++  --shell-photo-filter: saturate(.38) brightness(.34) contrast(1.08) hue-rotate(5deg); --shell-mesh-opacity: .62; --shell-grid-opacity: .24;
++  --shell-photo-overlay: linear-gradient(180deg, rgba(5,14,28,.51), rgba(5,12,22,.71));
++  --primary-border: rgba(68,170,236,.82); --primary-background: linear-gradient(180deg, #2c91dc, #1d65bb); --primary-shadow: 0 3px 12px rgba(20,104,188,.28);
++  --nav-active-text: #e9f6ff; --nav-active-background: linear-gradient(90deg, rgba(32,113,202,.34), rgba(23,79,150,.12)); --nav-active-shadow: inset 0 0 0 1px rgba(66,156,225,.22);
++  --nav-indicator-background: #32b4dd; --nav-indicator-shadow: 0 0 8px rgba(47,179,224,.42);
++  --panel-shadow: 0 10px 28px rgba(0,5,20,.2); --page-list-background: linear-gradient(180deg, rgba(10,24,52,.86), rgba(7,17,38,.9));
++  --drawer-border: rgba(70,128,188,.58); --drawer-shadow: -16px 0 48px rgba(0,4,18,.48); --drawer-title: #f1f7ff;
++  --chart-text: #a9b7ca; --chart-grid: rgba(84,124,172,.2); --chart-accent: #32b4dd; --chart-muted-bar: rgba(77,125,179,.62); --chart-remaining: rgba(74,102,142,.28); --chart-pie-border: #132746;
++  --chart-series-1: #32b4dd; --chart-series-2: #67d5ae; --chart-series-3: #249fe0; --chart-series-4: #ffbd61;
++}
++
++.dit-root[data-theme='light'] {
++  color-scheme: light;
++  --bg-0: #edf4f8; --bg-1: #f7fafc; --bg-2: #e8f1f5; --bg-3: #dce9ef;
++  --text: #183047; --text-2: #547087; --text-3: #4f6c81;
++  --glass: rgba(255,255,255,.76); --glass-border: rgba(90,140,170,.36);
++  --accent: #b24617; --accent-2: #a94416; --accent-glow: rgba(178,70,23,.22);
++  --cyan: #a94416; --cyan-dim: rgba(178,70,23,.12);
++  --app-background: linear-gradient(180deg, #e7f1f6 0%, #f4f8fa 100%);
++  --sidebar-background: linear-gradient(180deg, rgba(245,250,252,.98), rgba(225,237,243,.99));
++  --sidebar-border: rgba(70,125,155,.22);
++  --line-subtle: rgba(70,125,155,.16); --line-strong: rgba(70,125,155,.32);
++  --control-bg: rgba(255,255,255,.82); --control-border: rgba(70,125,155,.3);
++  --surface-panel: rgba(255,255,255,.82); --surface-popover: #f7fafc;
++  --surface-inset: rgba(228,236,241,.8); --surface-section: rgba(238,243,246,.82); --surface-section-head: rgba(219,232,238,.85);
++  --device-card-well: #e7f0f4; --device-card-surface: #fff; --device-card-metrics: #eaf1f4;
++  --device-card-border: rgba(70,125,155,.3); --device-card-divider: rgba(70,125,155,.2);
++  --device-card-shadow: 0 8px 20px rgba(30,70,90,.12), inset 0 1px 0 rgba(255,255,255,.9);
++  --device-card-hover-shadow: 0 12px 26px rgba(30,70,90,.17), inset 0 1px 0 rgba(255,255,255,1);
++  --surface-drawer: linear-gradient(180deg, #f8fbfc, #e8f1f5);
++  --surface-drawer-head: linear-gradient(180deg, rgba(255,255,255,.94), rgba(232,241,245,.92));
++  --surface-drawer-tabs: rgba(220,235,241,.72);
++  --table-header: #dbe8ee; --table-header-text: #38566d; --focus-ring: #a94416; --control-focus-shadow: 0 0 0 3px var(--accent-glow);
++  --table-body: #f7fafc; --table-row-hover: rgba(178,70,23,.06); --table-row-active: rgba(178,70,23,.1); --table-row-line: rgba(70,125,155,.12);
++  --table-sticky-hover: #f3eeea; --table-sticky-active: #f0e6df; --table-sticky-edge: rgba(70,125,155,.1);
++  --radius-control: 4px; --radius-panel: 6px;
++  --scrollbar-thumb: rgba(79,108,129,.52); --scrollbar-thumb-hover: rgba(79,108,129,.72); --scrollbar-track: rgba(228,236,241,.8);
++  --avatar-bg: linear-gradient(135deg, #f3e6dc, #e4c4ae); --avatar-border: rgba(178,70,23,.32); --avatar-text: #8d3412;
++  --select-panel-bg: var(--surface-popover);
++  --danger: #c8102e; --warning: #e67a00; --notice: #1677ff;
++  --list-text-primary: #29465d; --list-text-strong: #183047; --list-text-secondary: #547087; --list-text-muted: #4f6c81; --list-text-link: #1b6484;
++  --list-state-success: #1a8a53; --list-state-warning: var(--warning); --list-state-danger: var(--danger); --list-state-notice: var(--notice); --list-state-muted: #4f6c81;
++  --shell-sidebar-shadow: 6px 0 24px rgba(30,70,90,.14);
++  --shell-topbar-border: rgba(70,125,155,.24); --shell-topbar-background: linear-gradient(180deg, rgba(245,250,252,.98), rgba(225,237,243,.94)); --shell-topbar-shadow: 0 8px 24px rgba(30,70,90,.12);
++  --shell-title: #183047; --shell-title-shadow: 0 1px 0 rgba(255,255,255,.65);
++  --shell-photo-filter: none; --shell-mesh-opacity: 0; --shell-grid-opacity: 0;
++  --shell-photo-overlay: #edf4f8;
++  --primary-border: rgba(182,73,25,.72); --primary-background: linear-gradient(180deg, #e26b35, #bd4615); --primary-shadow: 0 3px 12px rgba(166,66,23,.2);
++  --nav-active-text: #8d3412; --nav-active-background: linear-gradient(90deg, rgba(212,81,22,.13), rgba(8,127,165,.06)); --nav-active-shadow: inset 0 0 0 1px rgba(212,81,22,.16);
++  --nav-indicator-background: linear-gradient(180deg, #ed753d, #d45116); --nav-indicator-shadow: 0 0 8px rgba(212,81,22,.2);
++  --panel-shadow: 0 10px 28px rgba(30,70,90,.12); --page-list-background: #edf4f8;
++  --drawer-border: rgba(70,125,155,.32); --drawer-shadow: -16px 0 40px rgba(30,70,90,.22); --drawer-title: #183047;
++  --chart-text: #38566d; --chart-grid: rgba(70,125,155,.18); --chart-accent: #d45116; --chart-muted-bar: rgba(70,125,155,.42); --chart-remaining: rgba(70,125,155,.16); --chart-pie-border: #dcebf1;
++  --chart-series-1: #087fa5; --chart-series-2: #17734d; --chart-series-3: #d45116; --chart-series-4: #a76800;
++}
++
++.dit-root[data-theme='dark'] {
++  color-scheme: dark;
++  --bg-0: #050b14; --bg-1: #071422; --bg-2: #0a1a2e; --bg-3: #0e2238;
++  --glass: rgba(12,30,52,.28); --glass-border: rgba(140,200,240,.28);
++  --text: #e8f2fc; --text-2: #8aa4bc; --text-3: #7a95ae;
++  --accent: #ff6a2b; --accent-2: #ff8f4a; --accent-glow: rgba(255,106,43,.35);
++  --cyan: #3ec6e8; --cyan-dim: rgba(62,198,232,.15);
++  --app-background: radial-gradient(ellipse 90% 60% at 70% 20%, rgba(20,70,110,.22), transparent 55%), linear-gradient(180deg, #06101c 0%, #050b14 100%);
++  --sidebar-background: linear-gradient(180deg, rgba(8,20,36,.98), rgba(4,10,18,.99));
++  --sidebar-border: rgba(60,130,180,.18);
++  --line-subtle: rgba(80,150,200,.14); --line-strong: rgba(100,180,220,.28);
++  --control-bg: rgba(0,12,24,.42); --control-border: rgba(80,150,200,.25);
++  --surface-panel: rgba(7,20,36,.78); --surface-popover: #0a1a2e;
++  --surface-inset: rgba(0,12,24,.38); --surface-section: rgba(0,12,24,.32); --surface-section-head: rgba(8,22,40,.45);
++  --device-card-well: rgba(1,9,18,.78); --device-card-surface: #0b1d30; --device-card-metrics: #071625;
++  --device-card-border: rgba(112,179,220,.38); --device-card-divider: rgba(112,179,220,.24);
++  --device-card-shadow: 0 8px 20px rgba(0,4,12,.34), inset 0 1px 0 rgba(164,211,239,.08);
++  --device-card-hover-shadow: 0 12px 26px rgba(0,4,12,.42), inset 0 1px 0 rgba(164,211,239,.12);
++  --surface-drawer: linear-gradient(180deg, rgba(10,24,42,.98), rgba(6,14,26,.99));
++  --surface-drawer-head: linear-gradient(180deg, rgba(12,32,54,.55), rgba(8,20,36,.25));
++  --surface-drawer-tabs: rgba(4,12,24,.35);
++  --table-header: rgba(8,18,32,.98); --table-header-text: var(--text-2); --focus-ring: #3ec6e8; --control-focus-shadow: none;
++  --table-body: #0a1624; --table-row-hover: rgba(62,198,232,.06); --table-row-active: rgba(255,106,43,.08); --table-row-line: rgba(80,150,200,.08);
++  --table-sticky-hover: #0d1e2d; --table-sticky-active: #1a1614; --table-sticky-edge: rgba(80,150,200,.1);
++  --radius-control: 5px; --radius-panel: 6px;
++  --scrollbar-thumb: rgba(100,160,200,.5); --scrollbar-thumb-hover: rgba(120,190,230,.7); --scrollbar-track: rgba(0,16,32,.55);
++  --avatar-bg: linear-gradient(135deg, #1a6090, #0d3050); --avatar-border: rgba(62,198,232,.35); --avatar-text: var(--cyan);
++  --select-panel-bg: var(--surface-popover);
++  --danger: #ff6b6b; --warning: #ff8a2b; --notice: #4d9eff;
++  --list-text-primary: #a9bfd2; --list-text-strong: var(--text); --list-text-secondary: var(--text-2); --list-text-muted: var(--text-3); --list-text-link: #8eb9d3;
++  --list-state-success: #55d69a; --list-state-warning: var(--warning); --list-state-danger: var(--danger); --list-state-notice: var(--notice); --list-state-muted: var(--text-3);
++  --shell-sidebar-shadow: 8px 0 28px rgba(0,0,0,.28);
++  --shell-topbar-border: rgba(60,140,190,.2); --shell-topbar-background: linear-gradient(180deg, rgba(12,28,48,.96), rgba(8,18,32,.92)); --shell-topbar-shadow: 0 8px 32px rgba(0,0,0,.28);
++  --shell-title: #f4f9ff; --shell-title-shadow: 0 0 28px rgba(100,190,230,.35), 0 1px 0 rgba(0,0,0,.35);
++  --shell-photo-filter: none; --shell-mesh-opacity: 0; --shell-grid-opacity: 0;
++  --shell-photo-overlay: #050b14;
++  --primary-border: transparent; --primary-background: linear-gradient(180deg,#ff7a3a,#e84e12); --primary-shadow: 0 4px 16px rgba(255,106,43,.35);
++  --nav-active-text: #ffd0b8; --nav-active-background: linear-gradient(90deg, rgba(255,106,43,.14), rgba(62,198,232,.06)); --nav-active-shadow: inset 0 0 0 1px rgba(255,106,43,.2);
++  --nav-indicator-background: linear-gradient(180deg, var(--accent-2), var(--accent)); --nav-indicator-shadow: 0 0 8px var(--accent-glow);
++  --panel-shadow: 0 10px 32px rgba(0,0,0,.22); --page-list-background: transparent;
++  --drawer-border: rgba(100,180,220,.25); --drawer-shadow: -16px 0 48px rgba(0,0,0,.45); --drawer-title: #f4f9ff;
++  --chart-text: #8aa4bc; --chart-grid: rgba(80,140,180,.1); --chart-accent: #ff6a2b; --chart-muted-bar: rgba(165,185,205,.42); --chart-remaining: rgba(255,255,255,.1); --chart-pie-border: #081628;
++  --chart-series-1: #3ec6e8; --chart-series-2: #36d399; --chart-series-3: #ff6a2b; --chart-series-4: #faad14;
++}
+diff --git a/src/types.ts b/src/types.ts
+index fecd470..ecc3daf 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -1,13 +1,23 @@
+ export type Theme = 'dark' | 'light' | 'remote-blue'
+ 
+ export const THEMES: readonly Theme[] = ['dark', 'light', 'remote-blue']
++
++export function resolveTheme(
++  prop?: string | null,
++  htmlDataset?: string | null,
++): Theme {
++  if (THEMES.includes(prop as Theme)) return prop as Theme
++  if (THEMES.includes(htmlDataset as Theme)) return htmlDataset as Theme
++  return 'remote-blue'
++}
++
+ export const MAX_TREND_SERIES = 8
+ export const DEFAULT_WINDOW_MS = 2 * 60 * 60 * 1000
+ export const AGGREGATE_FUNC = 2
+ export const RESERVE_DECIMAL = 3
+ 
+ export interface TrendItemIdentity {
+   deviceCode: string
+   pointId: string
+   kpiId: string
+   displayName?: string
+diff --git a/tests/chartOption.test.ts b/tests/chartOption.test.ts
+index b9aee46..a0c8e7b 100644
+--- a/tests/chartOption.test.ts
++++ b/tests/chartOption.test.ts
+@@ -1,15 +1,16 @@
+-import { describe, expect, it } from 'vitest'
++import { describe, expect, it, vi } from 'vitest'
+ import {
+   buildChartOption,
+   defaultTokens,
+   parseAggregateData,
++  readThemeTokens,
+ } from '../src/domain/chartOption'
+ import type { ThresholdMark } from '../src/domain/mapThreshold'
+ import type { TrendItemIdentity } from '../src/types'
+ 
+ const item: TrendItemIdentity = {
+   deviceCode: 'DEV01',
+   pointId: '01',
+   kpiId: 'RMS',
+   displayName: 'RMS',
+ }
+@@ -64,12 +65,44 @@ describe('buildChartOption', () => {
+ 
+     const markLine = (option.series[0] as { markLine: { data: Array<{ yAxis: number; lineStyle: { type: string; color: string } }> } }).markLine
+     expect(markLine.data).toHaveLength(3)
+     expect(markLine.data.every(d => d.lineStyle.type === 'dashed')).toBe(true)
+     expect(markLine.data.map(d => d.lineStyle.color)).toEqual([
+       defaultTokens.danger,
+       defaultTokens.warning,
+       defaultTokens.notice,
+     ])
+     expect(markLine.data.map(d => d.yAxis)).toEqual([100, 80, 60])
++    expect(option.color).toEqual(defaultTokens.series)
++  })
++})
++
++describe('readThemeTokens', () => {
++  it('falls back to defaultTokens when the element is missing or vars are empty', () => {
++    expect(readThemeTokens(null)).toBe(defaultTokens)
++    const el = document.createElement('div')
++    el.className = 'dit-root'
++    expect(readThemeTokens(el)).toBe(defaultTokens)
++  })
++
++  it('reads danger, warning, notice and series from computed CSS vars', () => {
++    const el = document.createElement('div')
++    el.className = 'dit-root'
++    vi.spyOn(window, 'getComputedStyle').mockReturnValue({
++      getPropertyValue: (name: string) => ({
++        '--danger': ' #aa0000 ',
++        '--warning': '#bb8800',
++        '--notice': '#0033aa',
++        '--chart-series-1': '#111111',
++        '--chart-series-2': '#222222',
++        '--chart-series-3': '#333333',
++        '--chart-series-4': '#444444',
++      }[name] ?? ''),
++    } as CSSStyleDeclaration)
++    expect(readThemeTokens(el)).toEqual({
++      danger: '#aa0000',
++      warning: '#bb8800',
++      notice: '#0033aa',
++      series: ['#111111', '#222222', '#333333', '#444444'],
++    })
+   })
+ })
+diff --git a/tests/panel.test.ts b/tests/panel.test.ts
+index ab4e7a1..032340d 100644
+--- a/tests/panel.test.ts
++++ b/tests/panel.test.ts
+@@ -167,11 +167,52 @@ describe('TrendPanel', () => {
+     expect(fetchAggregateTrend).toHaveBeenCalledTimes(2)
+     expect(seriesData(wrapper)).toEqual([[[1, 1]]])
+ 
+     first.resolve({
+       code: 200,
+       data: { timestamps: [2_000_000], values: [[99]] },
+     })
+     await flushPromises()
+     expect(seriesData(wrapper)).toEqual([[[1, 1]]])
+   })
++
++  it('clears threshold cache on empty selection so the same items fetch again', async () => {
++    const list = [item(0)]
++    const wrapper = mount(TrendPanel, {
++      props: {
++        trend: { items: list },
++        picker: { type: 'items', items: list },
++      },
++    })
++    await flushPromises()
++
++    await wrapper.find('.dit-threshold input').setValue(true)
++    await flushPromises()
++    expect(fetchEnabledThresholds).toHaveBeenCalledTimes(1)
++
++    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', [])
++    await flushPromises()
++    expect(fetchEnabledThresholds).toHaveBeenCalledTimes(1)
++
++    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', list)
++    await flushPromises()
++    expect(fetchEnabledThresholds).toHaveBeenCalledTimes(2)
++  })
++
++  it('rebuilds the trend option when fetchEnabledThresholds rejects', async () => {
++    vi.mocked(fetchAggregateTrend).mockResolvedValue({
++      code: 200,
++      data: { timestamps: [1_000_000], values: [[10]] },
++    })
++    vi.mocked(fetchEnabledThresholds).mockRejectedValue(new Error('threshold fail'))
++
++    const wrapper = mount(TrendPanel, {
++      props: { trend: { items: [item(0)] } },
++    })
++    await flushPromises()
++    expect(seriesData(wrapper)).toEqual([[[1, 10]]])
++
++    await wrapper.find('.dit-threshold input').setValue(true)
++    await flushPromises()
++    expect(seriesData(wrapper)).toEqual([[[1, 10]]])
++  })
+ })
+diff --git a/tests/theme.test.ts b/tests/theme.test.ts
+new file mode 100644
+index 0000000..a33f825
+--- /dev/null
++++ b/tests/theme.test.ts
+@@ -0,0 +1,183 @@
++import { beforeEach, describe, expect, it, vi } from 'vitest'
++import { flushPromises, mount } from '@vue/test-utils'
++import type { TrendItemIdentity } from '../src/types'
++
++const echartsMocks = vi.hoisted(() => ({
++  setOption: vi.fn(),
++  dispose: vi.fn(),
++}))
++
++vi.mock('echarts', () => ({
++  init: () => ({
++    setOption: echartsMocks.setOption,
++    dispose: echartsMocks.dispose,
++  }),
++}))
++
++vi.mock('../src/api/dataItems', () => ({
++  fetchDeviceDataItems: vi.fn(),
++}))
++vi.mock('../src/api/trend', () => ({
++  fetchAggregateTrend: vi.fn(),
++}))
++vi.mock('../src/api/thresholds', () => ({
++  fetchEnabledThresholds: vi.fn(),
++}))
++
++import { fetchDeviceDataItems } from '../src/api/dataItems'
++import { fetchAggregateTrend } from '../src/api/trend'
++import { fetchEnabledThresholds } from '../src/api/thresholds'
++import { resolveTheme } from '../src/types'
++import * as chartOptionMod from '../src/domain/chartOption'
++import TrendPanel from '../src/components/TrendPanel.vue'
++import TrendChart from '../src/components/TrendChart.vue'
++
++function item(i: number): TrendItemIdentity {
++  return {
++    deviceCode: 'DEV',
++    pointId: '01',
++    kpiId: `KPI_${i}`,
++    displayName: `数据项${i}`,
++  }
++}
++
++function panelOption(wrapper: ReturnType<typeof mount>) {
++  return wrapper.findComponent(TrendChart).props('option') as {
++    color?: string[]
++    series: Array<{ markLine?: { data?: unknown[] } }>
++  }
++}
++
++function markLineData(option: { series: Array<{ markLine?: { data?: unknown[] } }> }) {
++  return option.series.flatMap(s => s.markLine?.data ?? [])
++}
++
++describe('resolveTheme', () => {
++  it('follows html dataset when prop is omitted', () => {
++    expect(resolveTheme(undefined, 'light')).toBe('light')
++  })
++
++  it('falls back to remote-blue when html dataset is unknown', () => {
++    expect(resolveTheme(undefined, 'foo')).toBe('remote-blue')
++  })
++})
++
++describe('threshold toggle', () => {
++  beforeEach(() => {
++    vi.mocked(fetchDeviceDataItems).mockReset()
++    vi.mocked(fetchAggregateTrend).mockReset()
++    vi.mocked(fetchEnabledThresholds).mockReset()
++    echartsMocks.setOption.mockReset()
++    vi.mocked(fetchDeviceDataItems).mockResolvedValue([])
++    vi.mocked(fetchAggregateTrend).mockResolvedValue({ code: 200, data: null })
++    vi.mocked(fetchEnabledThresholds).mockResolvedValue([])
++  })
++
++  it('fetches enabled thresholds once when toggled on, not again when toggled off', async () => {
++    vi.mocked(fetchEnabledThresholds).mockResolvedValue([
++      { itemKey: 'DEV*01*KPI_0', level: '危险', y: 100, label: '危险' },
++    ])
++    const buildSpy = vi.spyOn(chartOptionMod, 'buildChartOption')
++    const wrapper = mount(TrendPanel, {
++      props: { trend: { items: [item(0)] } },
++    })
++    await flushPromises()
++    expect(fetchEnabledThresholds).not.toHaveBeenCalled()
++
++    const checkbox = wrapper.find('.dit-threshold input')
++    await checkbox.setValue(true)
++    await flushPromises()
++    expect(fetchEnabledThresholds).toHaveBeenCalledTimes(1)
++    expect(markLineData(panelOption(wrapper)).length).toBeGreaterThan(0)
++
++    await checkbox.setValue(false)
++    await flushPromises()
++    expect(fetchEnabledThresholds).toHaveBeenCalledTimes(1)
++    expect(buildSpy.mock.calls.at(-1)?.[0].showThresholds).toBe(false)
++    expect(markLineData(panelOption(wrapper))).toEqual([])
++    expect(echartsMocks.setOption.mock.calls.at(-1)?.[1]).toEqual({ notMerge: true })
++  })
++})
++
++describe('theme tokens', () => {
++  beforeEach(() => {
++    vi.mocked(fetchDeviceDataItems).mockReset()
++    vi.mocked(fetchAggregateTrend).mockReset()
++    vi.mocked(fetchEnabledThresholds).mockReset()
++    vi.mocked(fetchDeviceDataItems).mockResolvedValue([])
++    vi.mocked(fetchAggregateTrend).mockResolvedValue({
++      code: 200,
++      data: { timestamps: [1_000_000], values: [[10]] },
++    })
++    vi.mocked(fetchEnabledThresholds).mockResolvedValue([
++      { itemKey: 'DEV*01*KPI_0', level: '危险', y: 100, label: '危险' },
++    ])
++  })
++
++  it('passes computed CSS vars from .dit-root as themeTokens', async () => {
++    const original = window.getComputedStyle.bind(window)
++    vi.spyOn(window, 'getComputedStyle').mockImplementation((elt, pseudo) => {
++      const el = elt as Element
++      if (el?.classList?.contains('dit-root')) {
++        return new Proxy(original(elt, pseudo), {
++          get(target, prop, receiver) {
++            if (prop === 'getPropertyValue') {
++              return (name: string) => ({
++                '--danger': '#ff0000',
++                '--warning': '#ffa500',
++                '--notice': '#0000ff',
++                '--chart-series-1': '#111111',
++                '--chart-series-2': '#222222',
++                '--chart-series-3': '#333333',
++                '--chart-series-4': '#444444',
++              }[name] ?? target.getPropertyValue(name))
++            }
++            return Reflect.get(target, prop, receiver)
++          },
++        })
++      }
++      return original(elt, pseudo)
++    })
++
++    const buildSpy = vi.spyOn(chartOptionMod, 'buildChartOption')
++    const wrapper = mount(TrendPanel, {
++      props: { trend: { items: [item(0)] } },
++    })
++    await flushPromises()
++    await wrapper.find('.dit-threshold input').setValue(true)
++    await flushPromises()
++
++    expect(buildSpy.mock.calls.at(-1)?.[0].themeTokens).toEqual({
++      danger: '#ff0000',
++      warning: '#ffa500',
++      notice: '#0000ff',
++      series: ['#111111', '#222222', '#333333', '#444444'],
++    })
++    const option = panelOption(wrapper)
++    expect(option.color).toEqual(['#111111', '#222222', '#333333', '#444444'])
++    expect((option.series[0].markLine?.data as Array<{ lineStyle: { color: string } }>)[0].lineStyle.color).toBe('#ff0000')
++  })
++})
++
++describe('TrendChart setOption', () => {
++  beforeEach(() => {
++    echartsMocks.setOption.mockReset()
++  })
++
++  it('uses notMerge so hidden markLine is dropped', async () => {
++    const wrapper = mount(TrendChart, {
++      props: {
++        option: {
++          series: [{ type: 'line', markLine: { data: [{ yAxis: 1 }] } }],
++        },
++      },
++    })
++    await wrapper.vm.$nextTick()
++    await wrapper.setProps({
++      option: { series: [{ type: 'line' }] },
++    })
++    const last = echartsMocks.setOption.mock.calls.at(-1)
++    expect(last?.[0]).toEqual({ series: [{ type: 'line' }] })
++    expect(last?.[1]).toEqual({ notMerge: true })
++  })
++})

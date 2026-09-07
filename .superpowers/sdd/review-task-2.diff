@@ -1,0 +1,174 @@
+# Review package: b2d1777fa025a5f0ea883c3e0ef0979394831b8a..ecef49f3fccad0d23ae21852d628b943a232879d
+
+## Commits
+ecef49f feat: add time window, series cap, and item key
+
+## Files changed
+ src/domain/identity.ts |  5 +++++
+ src/limits.ts          |  8 ++++++++
+ src/time.ts            | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ tests/identity.test.ts |  8 ++++++++
+ tests/limits.test.ts   | 12 ++++++++++++
+ tests/time.test.ts     | 37 +++++++++++++++++++++++++++++++++++
+ 6 files changed, 123 insertions(+)
+
+## Diff
+diff --git a/src/domain/identity.ts b/src/domain/identity.ts
+new file mode 100644
+index 0000000..9b85c82
+--- /dev/null
++++ b/src/domain/identity.ts
+@@ -0,0 +1,5 @@
++import type { TrendItemIdentity } from '../types'
++
++export function itemKey(item: TrendItemIdentity): string {
++  return `${item.deviceCode}*${item.pointId}*${item.kpiId}`
++}
+diff --git a/src/limits.ts b/src/limits.ts
+new file mode 100644
+index 0000000..8558c59
+--- /dev/null
++++ b/src/limits.ts
+@@ -0,0 +1,8 @@
++import { MAX_TREND_SERIES } from './types'
++
++export function capSeries<T>(items: T[]): { items: T[]; overflow: number } {
++  return {
++    items: items.slice(0, MAX_TREND_SERIES),
++    overflow: Math.max(0, items.length - MAX_TREND_SERIES),
++  }
++}
+diff --git a/src/time.ts b/src/time.ts
+new file mode 100644
+index 0000000..bbab0d2
+--- /dev/null
++++ b/src/time.ts
+@@ -0,0 +1,53 @@
++import { DEFAULT_WINDOW_MS } from './types'
++
++const HOUR = 60 * 60 * 1000
++const DAY = 24 * HOUR
++
++export const TIME_PRESETS: { id: string; label: string; ms: number }[] = [
++  { id: '2h', label: '2小时', ms: 2 * HOUR },
++  { id: '8h', label: '8小时', ms: 8 * HOUR },
++  { id: '24h', label: '24小时', ms: 24 * HOUR },
++  { id: '2d', label: '2天', ms: 2 * DAY },
++  { id: '7d', label: '7天', ms: 7 * DAY },
++  { id: '14d', label: '14天', ms: 14 * DAY },
++  { id: '30d', label: '30天', ms: 30 * DAY },
++  { id: '60d', label: '60天', ms: 60 * DAY },
++  { id: '90d', label: '90天', ms: 90 * DAY },
++]
++
++export function resolveTimeWindow(
++  start?: number,
++  end?: number,
++  now: number = Date.now(),
++): { startTimeMs: number; endTimeMs: number } {
++  const endTimeMs = end ?? now
++  const startTimeMs = start ?? endTimeMs - DEFAULT_WINDOW_MS
++  return { startTimeMs, endTimeMs }
++}
++
++export function applyPreset(
++  endTimeMs: number,
++  presetMs: number,
++  now?: number,
++): { startTimeMs: number; endTimeMs: number } {
++  return {
++    startTimeMs: endTimeMs - presetMs,
++    endTimeMs,
++  }
++}
++
++export function shiftWindow(
++  start: number,
++  end: number,
++  deltaMs: number,
++  now: number,
++): { startTimeMs: number; endTimeMs: number } {
++  let startTimeMs = start + deltaMs
++  let endTimeMs = end + deltaMs
++  if (endTimeMs > now) {
++    const duration = endTimeMs - startTimeMs
++    endTimeMs = now
++    startTimeMs = now - duration
++  }
++  return { startTimeMs, endTimeMs }
++}
+diff --git a/tests/identity.test.ts b/tests/identity.test.ts
+new file mode 100644
+index 0000000..255c20a
+--- /dev/null
++++ b/tests/identity.test.ts
+@@ -0,0 +1,8 @@
++import { describe, expect, it } from 'vitest'
++import { itemKey } from '../src/domain/identity'
++
++describe('itemKey', () => {
++  it('joins deviceCode, pointId, and kpiId with *', () => {
++    expect(itemKey({ deviceCode: 'A', pointId: '01', kpiId: 'k' })).toBe('A*01*k')
++  })
++})
+diff --git a/tests/limits.test.ts b/tests/limits.test.ts
+new file mode 100644
+index 0000000..49b16f9
+--- /dev/null
++++ b/tests/limits.test.ts
+@@ -0,0 +1,12 @@
++import { describe, expect, it } from 'vitest'
++import { capSeries } from '../src/limits'
++
++describe('capSeries', () => {
++  it('keeps first 8 items and reports overflow of 2 for 10 inputs', () => {
++    const input = Array.from({ length: 10 }, (_, i) => i)
++    const result = capSeries(input)
++    expect(result.items.length).toBe(8)
++    expect(result.overflow).toBe(2)
++    expect(result.items).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
++  })
++})
+diff --git a/tests/time.test.ts b/tests/time.test.ts
+new file mode 100644
+index 0000000..f536d13
+--- /dev/null
++++ b/tests/time.test.ts
+@@ -0,0 +1,37 @@
++import { describe, expect, it } from 'vitest'
++import { applyPreset, resolveTimeWindow, shiftWindow, TIME_PRESETS } from '../src/time'
++
++describe('resolveTimeWindow', () => {
++  it('defaults to last 2 hours when times omitted', () => {
++    const now = 1_700_000_000_000
++    expect(resolveTimeWindow(undefined, undefined, now)).toEqual({
++      startTimeMs: now - 2 * 60 * 60 * 1000,
++      endTimeMs: now,
++    })
++  })
++})
++
++describe('TIME_PRESETS', () => {
++  it('includes the confirmed shortcut list', () => {
++    expect(TIME_PRESETS.map(p => p.label)).toEqual([
++      '2小时', '8小时', '24小时', '2天', '7天', '14天', '30天', '60天', '90天',
++    ])
++  })
++})
++
++describe('applyPreset', () => {
++  it('keeps end time and changes duration', () => {
++    const end = 1_700_000_000_000
++    expect(applyPreset(end, 8 * 3600 * 1000)).toEqual({
++      startTimeMs: end - 8 * 3600 * 1000,
++      endTimeMs: end,
++    })
++  })
++})
++
++describe('shiftWindow', () => {
++  it('shifts both ends and does not let end pass now', () => {
++    const now = 1000
++    expect(shiftWindow(0, 400, 800, now)).toEqual({ startTimeMs: 600, endTimeMs: 1000 })
++  })
++})

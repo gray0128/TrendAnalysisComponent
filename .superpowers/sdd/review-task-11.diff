@@ -1,0 +1,198 @@
+# Review package: c798d14454ea2433376505f4c2502a8b4637b06d..6cee43b029c5a82c872bd04cb567a82759fe73b9
+
+## Commits
+6cee43b feat: install data-item-trend and inject proxied request
+
+## Files changed
+ package-lock.json                                  | 24 ++++++++++++++++++++++
+ package.json                                       |  1 +
+ src/main.ts                                        |  4 ++++
+ .../wgMyDevice/adapters/dataItemTrendRequest.ts    | 23 +++++++++++++++++++++
+ 4 files changed, 52 insertions(+)
+
+## Diff
+diff --git a/package-lock.json b/package-lock.json
+index dd69384..969bd11 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -8,20 +8,21 @@
+       "name": "dosiv-v2",
+       "version": "0.0.0",
+       "dependencies": {
+         "@ant-design/icons-vue": "^7.0.1",
+         "@fontsource/jetbrains-mono": "^5.3.0",
+         "@fontsource/noto-sans-sc": "^5.3.0",
+         "@gray0128/agent-component-vue3": "^1.2.1",
+         "ant-design-vue": "^4.2.6",
+         "axios": "^1.19.0",
+         "comp-adv3210": "^1.1.17",
++        "data-item-trend": "file:../data-item-trend",
+         "docx": "^9.7.1",
+         "echarts": "^6.1.0",
+         "html2canvas": "^1.4.1",
+         "jspdf": "^4.2.1",
+         "lottie-web": "^5.13.0",
+         "pinia": "^4.0.3",
+         "vue": "^3.5.40",
+         "vue-router": "^4.6.4"
+       },
+       "devDependencies": {
+@@ -40,20 +41,39 @@
+         "typescript": "~6.0.2",
+         "typescript-eslint": "^8.68.0",
+         "vite": "^8.2.0",
+         "vue-eslint-parser": "^10.4.1",
+         "vue-tsc": "^3.3.8"
+       },
+       "engines": {
+         "node": ">=22.12.0"
+       }
+     },
++    "../data-item-trend": {
++      "version": "0.1.0",
++      "dependencies": {
++        "echarts": "^6.1.0"
++      },
++      "devDependencies": {
++        "@vitejs/plugin-vue": "^6.0.8",
++        "@vue/test-utils": "^2.4.6",
++        "jsdom": "^26.1.0",
++        "typescript": "~5.9.0",
++        "vite": "^8.2.0",
++        "vite-plugin-dts": "^4.5.0",
++        "vitest": "^3.2.0",
++        "vue": "^3.5.40"
++      },
++      "peerDependencies": {
++        "vue": "^3.5.0"
++      }
++    },
+     "node_modules/@ant-design/colors": {
+       "version": "6.0.0",
+       "resolved": "https://registry.npmmirror.com/@ant-design/colors/-/colors-6.0.0.tgz",
+       "integrity": "sha512-qAZRvPzfdWHtfameEGP2Qvuf838NhergR35o+EuVyB5XvSA98xod5r4utvi4TJ3ywmevm290g9nsCG5MryrdWQ==",
+       "license": "MIT",
+       "dependencies": {
+         "@ctrl/tinycolor": "^3.4.0"
+       }
+     },
+     "node_modules/@ant-design/icons-svg": {
+@@ -2141,20 +2161,24 @@
+       "integrity": "sha512-wAV9QHOsNbwnWdNW2FYvE1P56wtgSbM+3SZcdGiWQILwVjACCXDCI3Ai8QlCjMDB8YK5zySiXZYBiwGmNY3lnw==",
+       "dev": true,
+       "license": "MIT",
+       "engines": {
+         "node": ">=12"
+       },
+       "funding": {
+         "url": "https://github.com/sponsors/sindresorhus"
+       }
+     },
++    "node_modules/data-item-trend": {
++      "resolved": "../data-item-trend",
++      "link": true
++    },
+     "node_modules/dayjs": {
+       "version": "1.11.22",
+       "resolved": "https://registry.npmmirror.com/dayjs/-/dayjs-1.11.22.tgz",
+       "integrity": "sha512-1YRnxzt/AabP3GHxnaB9/b+ZScCKu5TeF+co+BWG+lnWVIwEcTFc1FVE0WLNmNO3sA6GGXL40i5qkHfbLzpwrg=="
+     },
+     "node_modules/debug": {
+       "version": "4.4.3",
+       "resolved": "https://mirrors.cloud.tencent.com/npm/debug/-/debug-4.4.3.tgz",
+       "integrity": "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==",
+       "license": "MIT",
+diff --git a/package.json b/package.json
+index aaf2352..41f10de 100644
+--- a/package.json
++++ b/package.json
+@@ -17,20 +17,21 @@
+     "commit": "git cz"
+   },
+   "dependencies": {
+     "@ant-design/icons-vue": "^7.0.1",
+     "@fontsource/jetbrains-mono": "^5.3.0",
+     "@fontsource/noto-sans-sc": "^5.3.0",
+     "@gray0128/agent-component-vue3": "^1.2.1",
+     "ant-design-vue": "^4.2.6",
+     "axios": "^1.19.0",
+     "comp-adv3210": "^1.1.17",
++    "data-item-trend": "file:../data-item-trend",
+     "docx": "^9.7.1",
+     "echarts": "^6.1.0",
+     "html2canvas": "^1.4.1",
+     "jspdf": "^4.2.1",
+     "lottie-web": "^5.13.0",
+     "pinia": "^4.0.3",
+     "vue": "^3.5.40",
+     "vue-router": "^4.6.4"
+   },
+   "devDependencies": {
+diff --git a/src/main.ts b/src/main.ts
+index 01ee13f..4ce5a98 100644
+--- a/src/main.ts
++++ b/src/main.ts
+@@ -7,30 +7,34 @@ import { createApp } from 'vue'
+ import { createPinia } from 'pinia'
+ import './style.css'
+ import './styles/downtime-tokens.css'
+ import 'ant-design-vue/dist/reset.css'
+ import Antd from 'ant-design-vue'
+ // 必须先于 comp-adv3210 执行：为 comp-adv3210 内部 axios 实例注入 userId 请求头
+ import '@/api/inject-user-header'
+ // 引入 comp-adv3210 自带样式（含 Tabs ink-bar、按钮等基础样式）
+ import 'comp-adv3210/comp-adv3210.css'
+ import compAdv3210Pkg from 'comp-adv3210'
++import DataItemTrend from 'data-item-trend'
++import 'data-item-trend/style.css'
++import { createDataItemTrendRequest } from '@/views/wgMyDevice/adapters/dataItemTrendRequest'
+ import App from './App.vue'
+ // 使用 guards 导出的 router（已注册全局守卫）
+ import router from './router/guards'
+ 
+ const app = createApp(App)
+ app.use(createPinia())
+ app.use(router)
+ // comp-adv3210 内部通过 resolveComponent 使用 ant-design-vue 组件，需全局注册 antd
+ app.use(Antd)
+ 
+ // 注册 comp-adv3210 提供的组件：BaowuTestButton / BaowuDeviceTree（宝武设备树）
+ // comp-adv3210 是 webpack CJS 库（module.exports = { __esModule: true, default: install }），
+ // 在 Vite/esbuild 某些版本下 import default 可能拿到整个命名空间对象而非 install 函数，
+ // 导致 app.use(对象) 被 Vue 静默忽略、组件未注册。这里兼容两种 interop 结果。
+ const compAdv3210: any = (compAdv3210Pkg as any)?.default ?? compAdv3210Pkg
+ if (typeof compAdv3210 !== 'function') {
+   console.error('[comp-adv3210] install function not resolved:', compAdv3210)
+ }
+ app.use(compAdv3210)
++app.use(DataItemTrend, { request: createDataItemTrendRequest() })
+ app.mount('#app')
+diff --git a/src/views/wgMyDevice/adapters/dataItemTrendRequest.ts b/src/views/wgMyDevice/adapters/dataItemTrendRequest.ts
+new file mode 100644
+index 0000000..4b2e6b0
+--- /dev/null
++++ b/src/views/wgMyDevice/adapters/dataItemTrendRequest.ts
+@@ -0,0 +1,23 @@
++import axios from 'axios'
++import type { TrendRequest } from 'data-item-trend'
++import { getToken, getUserId } from '@/utils/local-storage'
++
++export function headersForUrl(url: string, token: string, userId: string): Record<string, string> {
++  const headers: Record<string, string> = { userId }
++  if (url.startsWith('/api/threshold')) headers.token = token
++  else headers['x-token'] = token
++  if (url.startsWith('/iehm-cloud/api/v1/busout')) headers['Xplat-Token'] = token
++  return headers
++}
++
++export function createDataItemTrendRequest(): TrendRequest {
++  return async (url, init) => {
++    const response = await axios({
++      url,
++      method: init.method,
++      data: init.data,
++      headers: headersForUrl(url, getToken(), getUserId()),
++    })
++    return response.data
++  }
++}

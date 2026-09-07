@@ -1,0 +1,312 @@
+# Review package: 6cee43b029c5a82c872bd04cb567a82759fe73b9..aa7b27a7ea2afaa2a8421c1fe5c44fd1cf00c7f4
+
+## Commits
+aa7b27a feat: open data-item trend panel instead of ddsat analyze
+
+## Files changed
+ .../wgMyDevice/components/DeviceDetailDrawer.vue   | 64 ++++++++++++++--------
+ src/views/wgMyDevice/styles/device-drawer.css      |  6 ++
+ 2 files changed, 48 insertions(+), 22 deletions(-)
+
+## Diff
+diff --git a/src/views/wgMyDevice/components/DeviceDetailDrawer.vue b/src/views/wgMyDevice/components/DeviceDetailDrawer.vue
+index 1266898..17426e3 100644
+--- a/src/views/wgMyDevice/components/DeviceDetailDrawer.vue
++++ b/src/views/wgMyDevice/components/DeviceDetailDrawer.vue
+@@ -2,21 +2,22 @@
+ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+ import { dataAdapter } from '../adapters'
+ import type { Alarm, AlarmListRequest, AlarmProgress, AlarmSeverity, DataItem, Device, DeviceDetail, Model, OnlineStatus, Rule, Threshold } from '../domain/types'
+ import { getKpiValueListByBusFilterDoGet, getKpiValueListByMatchAlertState, getSpecialtyDict, getThresholdListByCondition, listDataItemStatusByPageQuery, listDataItemTag, queryDeviceProfileByCode, queryIplatSsoCredential, queryRuleAlarmMsg, updateThresholdByCode } from '@/api/Wpage'
+ import type { DataItemTag } from '@/api/Wpage'
+ import type { DataItemTriple } from '../domain/listNavigation'
+ import { extractList, mapDataItemStatusList, splitDomain } from '../domain/busFilterAdapter'
+ import { getToken } from '@/utils/local-storage'
+ import { openInNewTab, rewriteToCurrentOrigin } from '@/utils/navigation'
+ import { queryAlertByDeviceAndKpi } from '@/api/pmsal'
+-import { DDSAT_BASE_URL } from '@/config/app'
++import { TrendPanel } from 'data-item-trend'
++import type { PickerInput, TrendItemIdentity, TrendLoadInput } from 'data-item-trend'
+ import AppToast from './AppToast.vue'
+ import AlarmDetailDrawer from './AlarmDetailDrawer.vue'
+ import DataItemDetailDrawer from './DataItemDetailDrawer.vue'
+ import MultiSelectField from './MultiSelectField.vue'
+ import SelectField from './SelectField.vue'
+ import type { DeviceScope } from '../domain/deviceScope'
+ import { deviceIsWithinScope, validateEmbedScope } from '../domain/deviceScope'
+ import { isOfflineStatus } from '../domain/dataQuality'
+ import {
+   ALARM_PROGRESS_OPTIONS, ALARM_SEVERITY_OPTIONS, ALARM_TIME_RANGES, ALARM_TIME_TYPES, DASH_COLLECTION_METHOD_OPTIONS,
+@@ -124,20 +125,22 @@ const profileExpanded = ref(loadBooleanPref(STORAGE_KEY_PROFILE_EXPANDED, false)
+ watch(profileExpanded, (val) => {
+   saveBooleanPref(STORAGE_KEY_PROFILE_EXPANDED, val)
+ })
+ 
+ /** 统计信息展开状态（支持本地持久化，默认隐藏） */
+ const statisticsVisible = ref(loadBooleanPref(STORAGE_KEY_STATISTICS_VISIBLE, false))
+ watch(statisticsVisible, (val) => {
+   saveBooleanPref(STORAGE_KEY_STATISTICS_VISIBLE, val)
+ })
+ const secondary = ref<DataItem | null>(null)
++const trendOpen = ref(false)
++const trendItem = ref<TrendItemIdentity | null>(null)
+ const nestedAlarmId = ref<string | null>(null)
+ const nestedAlarm = ref<Alarm | null>(null)
+ const width = ref<number | null>(null)
+ const secondaryWidth = ref<number | null>(null)
+ const resizing = ref<'primary' | 'secondary' | null>(null)
+ const pageSize = ref(50)
+ const pages = ref<Record<string, number>>({ dataItems: 1, alarms: 1, thresholds: 1, rules: 1, models: 1 })
+ /** 报警列表后端分页（ALIN02/queryAlertDataList）返回的总数 / 总页数 / 加载态 */
+ const alarmTotal = ref(0)
+ const alarmTotalPages = ref(1)
+@@ -199,20 +202,22 @@ const secondaryThresholds = computed(() => secondary.value ? thresholdsForItem(s
+ const pointCode = (item: DataItem) => item.pointCode || item.logicalPointId.split('_').at(-1) || '—'
+ const pointName = (item: DataItem) => item.pointName || '逻辑测点'
+ const showToast = (message: string) => { toast.value = message }
+ 
+ function resetState(): void {
+   activeTab.value = props.initialTab
+   // 切换设备自动应用本地偏好；若清除缓存则恢复对应默认值
+   profileExpanded.value = loadBooleanPref(STORAGE_KEY_PROFILE_EXPANDED, false)
+   statisticsVisible.value = loadBooleanPref(STORAGE_KEY_STATISTICS_VISIBLE, false)
+   secondary.value = null
++  trendOpen.value = false
++  trendItem.value = null
+   nestedAlarmId.value = null
+   nestedAlarm.value = null
+   selectedRule.value = null
+   ruleAlarmMessages.value = []
+   ruleAlarmLoading.value = false
+   ruleAlarmError.value = ''
+   pages.value = { dataItems: 1, alarms: 1, thresholds: 1, rules: 1, models: 1 }
+   pageSize.value = 50
+   alarmLoadSequence += 1
+   alarmTotal.value = 0
+@@ -748,32 +753,33 @@ watch(() => props.initialTab, value => { activeTab.value = value })
+ watch(() => props.initialDataItemId, value => {
+   if (!value || !props.deviceId || !props.open) return
+   if (!detail.value) { if (!loading.value) void load(); return }
+   const sequence = ++loadSequence
+   void openInitialDataItem(value, sequence, props.deviceId).finally(() => {
+     if (sequence === loadSequence) loading.value = false
+   })
+ })
+ watch(activeTab, value => { secondary.value = null; emit('tab-change', value) })
+ 
+-function closePrimary(): void { loadSequence += 1; loading.value = false; secondary.value = null; nestedAlarmId.value = null; nestedAlarm.value = null; groupModalOpen.value = false; selectedRule.value = null; ruleAlarmMessages.value = []; ruleAlarmLoading.value = false; ruleAlarmError.value = ''; emit('close') }
++function closePrimary(): void { loadSequence += 1; loading.value = false; secondary.value = null; trendOpen.value = false; trendItem.value = null; nestedAlarmId.value = null; nestedAlarm.value = null; groupModalOpen.value = false; selectedRule.value = null; ruleAlarmMessages.value = []; ruleAlarmLoading.value = false; ruleAlarmError.value = ''; emit('close') }
+ function openAlarm(alarmId: string): void {
+   nestedAlarm.value = detail.value?.alarms.find(alarm => alarm.id === alarmId) ?? null
+   nestedAlarmId.value = alarmId
+ }
+ function closeSecondary(): void { secondary.value = null; if (props.standalone) closePrimary() }
+ function onKeydown(event: KeyboardEvent): void {
+   if (event.key !== 'Escape' || !isOpen.value) return
+   event.stopPropagation()
+   if (alarmMselOpen.value) { alarmMselOpen.value = null; return }
+   if (selectedRule.value) { selectedRule.value = null; ruleAlarmMessages.value = []; ruleAlarmLoading.value = false; ruleAlarmError.value = ''; return }
+   if (groupModalOpen.value) { groupModalOpen.value = false; return }
++  if (trendOpen.value) { closeItemTrend(); return }
+   const next = closeTopLayer({ deviceId: props.deviceId ?? null, dataItemId: secondary.value?.id ?? null })
+   if (next.deviceId) closeSecondary()
+   else closePrimary()
+ }
+ function onDocumentClick(event: MouseEvent): void {
+   if (!alarmMselOpen.value) return
+   if (!(event.target as HTMLElement | null)?.closest('[data-msel]')) alarmMselOpen.value = null
+ }
+ onMounted(() => { window.addEventListener('keydown', onKeydown); document.addEventListener('click', onDocumentClick); void loadSpecialties() })
+ onUnmounted(() => { loadSequence += 1; window.removeEventListener('keydown', onKeydown); document.removeEventListener('click', onDocumentClick) })
+@@ -1269,38 +1275,48 @@ async function loadSpecialties(): Promise<void> {
+     /* 字典加载失败时回退原始值 */
+   }
+ }
+ function specialtyNameOf(code?: number | null): string | undefined {
+   if (code == null || code === undefined) return undefined
+   const numeric = Number(code)
+   if (!Number.isFinite(numeric)) return undefined
+   return specialtyNameByCode.value.get(numeric)
+ }
+ 
+-/** 打开 ddsat 诊断分析：只带三元组（deviceCode / pointId / collectKpiId），时间窗口默认最近 2 小时 */
+-function openDdsatAnalyze(item: DataItem): void {
+-  const code = detail.value?.code || ''
++const trendLoad = computed<TrendLoadInput>(() => ({
++  items: trendItem.value ? [trendItem.value] : [],
++}))
++const trendPicker = computed<PickerInput | null>(() => {
++  const deviceCode = detail.value?.code || ''
++  if (!deviceCode) return null
++  return { type: 'device', deviceCode, deviceName: detail.value?.name }
++})
++
++/** 打开本页第二层抽屉中的数据项趋势（组件默认最近 2 小时） */
++function openItemTrend(item: DataItem): void {
++  const deviceCode = detail.value?.code || ''
+   const point = pointCode(item)
+   const kpi = item.code
+-  if (!code || !point || !kpi) { showToast('缺少设备编码/测点/数据项，无法打开分析'); return }
+-  const et = Date.now()
+-  const st = et - 2 * 60 * 60 * 1000
+-  const baseUrl = rewriteToCurrentOrigin(DDSAT_BASE_URL)
+-  const target = new URL(baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`)
+-  target.searchParams.set('deviceCode', code)
+-  target.searchParams.set('pointId', point)
+-  target.searchParams.set('collectKpiId', kpi)
+-  target.searchParams.set('st', String(st))
+-  target.searchParams.set('et', String(et))
+-  target.searchParams.set('origin', 'pms')
+-  openInNewTab(target.toString())
+-  showToast('已新标签打开诊断分析')
++  if (!deviceCode || !point || !kpi) { showToast('缺少设备编码/测点/数据项，无法打开分析'); return }
++  trendItem.value = {
++    deviceCode,
++    pointId: point,
++    kpiId: kpi,
++    displayName: item.displayName,
++    pointName: pointName(item),
++    unit: item.unit,
++  }
++  trendOpen.value = true
++}
++function closeItemTrend(): void {
++  trendOpen.value = false
++  trendItem.value = null
+ }
+ /**
+  * 打开 dmsui 模型配置：
+  * {DMSUI_BASE_URL}?token={本地登录 token}#/modelconfig/device-asso?deviceCode=&modelAiCode=&ruleCode=&modelCode=
+  */
+ function openDmsuiConfig(item: Model): void {
+   const token = getToken()
+   if (!token) { showToast('登录信息缺失，请重新登录后再试'); return }
+   const query = new URLSearchParams({ deviceCode: detail.value?.code ?? '', modelCode: item.code })
+   if (item.aiCode) query.set('modelAiCode', item.aiCode)
+@@ -1500,21 +1516,21 @@ function setSummaryDrill(kind: string, extra?: { progress?: AlarmProgress; sever
+   }
+   setTab(kind as DeviceDetailTab)
+ }
+ </script>
+ 
+ <template>
+   <template v-if="isOpen">
+     <div class="device-drawer-scope" :data-theme="drawerTheme">
+     <template v-if="showPrimary">
+     <div class="drawer-mask drawer-mask-l1 open" @click="closePrimary" />
+-    <aside class="drawer drawer-l1 open" :class="{ stacked: secondary || nestedAlarmId, resizing: resizing === 'primary' }" :style="primaryStyle" aria-label="设备详情">
++    <aside class="drawer drawer-l1 open" :class="{ stacked: secondary || nestedAlarmId || trendOpen, resizing: resizing === 'primary' }" :style="primaryStyle" aria-label="设备详情">
+       <div class="drawer-resize" role="separator" aria-label="拖动调整设备详情宽度" @pointerdown="startResize('primary', $event)" />
+       <header v-if="detail" class="drawer-head">
+         <div class="drawer-head-top"><div><div class="drawer-title">{{ detail.name }}</div><div class="drawer-code-row"><span class="drawer-code">{{ detail.code }}</span><span class="drawer-scope" title="管理域路径">{{ deviceScopePath(detail) }}</span><span class="drawer-copy-actions" role="group" aria-label="复制设备信息"><button class="drawer-copy-btn" type="button" title="复制设备编码" @click="copyText(detail.code)">复制编码</button><button class="drawer-copy-btn" type="button" title="复制设备名称" @click="copyText(detail.name)">复制名称</button><button class="drawer-copy-btn" type="button" title="复制完整设备树路径" @click="copyText(deviceFullTreePath(detail))">复制管理域</button><button class="drawer-copy-btn" type="button" title="以表格兼容格式复制全部设备属性" @click="copyProfile">复制属性到表格</button></span><button class="drawer-copy-btn drawer-header-toggle drawer-statistics-link" type="button" :aria-expanded="statisticsVisible" @click="statisticsVisible = !statisticsVisible">{{ statisticsVisible ? '隐藏统计信息' : '显示统计信息' }}</button><button class="drawer-copy-btn drawer-header-toggle drawer-profile-link" type="button" :aria-expanded="profileExpanded" aria-controls="device-profile-body" @click="profileExpanded = !profileExpanded">{{ profileExpanded ? '隐藏属性信息' : '显示属性信息' }}</button></div></div><button class="drawer-close" type="button" aria-label="关闭" @click="closePrimary">×</button></div>
+         <div v-if="profileExpanded" class="drawer-profile" aria-label="设备属性"><div id="device-profile-body" class="drawer-profile-body"><section class="profile-section profile-section-plain"><div class="profile-grid profile-grid-4"><div v-for="field in profileFields" :key="field[0]" class="m"><span class="m-k">{{ field[0] }}</span><span class="m-v" :class="{ 'is-empty': !field[1] }">{{ field[1] || '—' }}</span></div></div></section><section class="profile-section profile-section-ext detail-section"><header class="detail-section-head"><h3>设备扩展属性</h3></header><div class="detail-section-body"><div class="profile-grid profile-grid-4"><div v-for="field in extendedFields" :key="field[0]" class="m"><span class="m-k">{{ field[0] }}</span><span class="m-v" :class="{ 'is-empty': !field[1] }">{{ field[1] || '—' }}</span></div></div></div></section></div></div>
+       </header>
+       <div v-if="loading" class="drawer-body"><div class="blank-state">正在加载设备详情…</div></div>
+       <div v-else-if="errorMessage" class="drawer-body"><div class="blank-state">{{ errorMessage }} <button class="btn-link" type="button" @click="load">重试</button></div></div>
+       <template v-else-if="detail">
+         <section v-if="statisticsVisible" class="drawer-summary">
+           <section class="summary-panel summary-alarms" aria-label="报警统计">
+@@ -1615,22 +1631,22 @@ function setSummaryDrill(kind: string, extra?: { progress?: AlarmProgress; sever
+ 
+                     <!-- 下部内容区：包含实时值+时间（左对齐），以及显示阈值时的阈值列表（整体下移到数据项名称下边） -->
+                     <div class="dash-card-body">
+                       <!-- 实时值胶囊与最近上报时间 -->
+                       <div class="dash-card-main">
+                         <!-- 实时值颜色只响应启用状态阈值规则，停用规则不参与判定（见 itemDashClass） -->
+                         <button
+                           class="dash-card-val"
+                           :class="`tone-${itemDashClass(item)}`"
+                           type="button"
+-                          title="打开综合趋势分析"
+-                          @click.stop="openDdsatAnalyze(item)"
++                          title="打开数据项趋势"
++                          @click.stop="openItemTrend(item)"
+                         >
+                           <span class="dash-num">{{ itemParts(item).value }}</span>
+                           <span v-if="itemParts(item).unit" class="dash-unit">{{ itemParts(item).unit }}</span>
+                         </button>
+                         <div class="dash-card-time">{{ hasItemValue(item) ? formatDashTime(item.updatedAt) : '' }}</div>
+                       </div>
+ 
+                       <!-- 阈值显示区（受 dashThresholdsVisible 控制，整体下移至名称下边，固定宽度使有无阈值卡片完全等宽） -->
+                       <div v-if="dashThresholdsVisible" class="dash-card-thresholds" aria-label="阈值列表">
+                         <div
+@@ -1647,21 +1663,21 @@ function setSummaryDrill(kind: string, extra?: { progress?: AlarmProgress; sever
+                           <span class="dash-th-text">{{ slot.text }}</span>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+               <div v-if="!dashboardGroups.length" class="blank-state">当前筛选下无指标</div>
+             </div>
+           </section>
+-          <template v-else-if="activeTab === 'dataItems'"><div v-if="!detail.dataItems.length" class="blank-state">本设备暂无数据项</div><template v-else><div class="page-filter-bar"><div class="page-filter-row"><label class="field">测点<input v-model="diDraft.point" placeholder="编号 / 名称" @keyup.enter="applyDi"></label><label class="field">状态<MultiSelectField v-model="diDraft.statuses" :options="DATA_ITEM_STATUS_OPTIONS" label="数据项状态" /></label><label class="field">报警<SelectField v-model="diDraft.alarm" :options="[{ value: '', label: '全部' }, { value: 'yes', label: '有活跃' }, { value: 'no', label: '无活跃' }]" /></label><label class="field">是否信号<SelectField v-model="diDraft.isSignal" :options="[{ value: '', label: '全部' }, { value: 'yes', label: '是' }, { value: 'no', label: '否' }]" /></label><label class="field">是否有信号<SelectField v-model="diDraft.hasSignal" :options="[{ value: '', label: '全部' }, { value: 'yes', label: '是' }, { value: 'no', label: '否' }]" /></label><label class="field">数据项标签<SelectField v-model="diDraft.tag" :options="diTagOptions" /></label><label class="field">用户分组<SelectField v-model="diDraft.group" :options="[{ value: 'all', label: '全部' }, { value: 'ungrouped', label: '未分组' }, ...groupAliases.map((label, index) => ({ value: String(index), label }))]" /></label></div><div class="page-filter-actions"><button class="btn-sm primary" type="button" @click="applyDi">查询</button><button class="btn-sm" type="button" @click="resetDi">重置</button></div></div><div class="list-block"><div class="table-scroll"><table class="mini-table di-table list-table"><thead><tr><th>测点编号</th><th>测点名称</th><th>数据项</th><th>数据项展示名称</th><th>实时值</th><th>最近上报时间</th><th class="col-status">状态</th><th class="col-flag">报警</th><th>分组</th><th></th></tr></thead><tbody><tr v-for="(item, index) in dataItemsPage.rows" :key="item.id" :data-item-id="item.id" :class="{ 'active-item': secondary?.id === item.id }" @click="openItem(item)"><td v-if="dataItemsPage.spans[index]! > 0" class="merge-cell" :rowspan="dataItemsPage.spans[index]">{{ pointCode(item) }}</td><td v-if="dataItemsPage.spans[index]! > 0" class="merge-cell" :rowspan="dataItemsPage.spans[index]">{{ pointName(item) }}</td><td class="num di-code">{{ item.code }}</td><td>{{ item.displayName }}</td><td class="runtime-value-cell"><!-- 列表实时值只响应启用阈值，停用规则不参与（itemPillClass） --><span v-if="hasItemValue(item)" :class="itemPillClass(item)"><span class="n">{{ itemParts(item).value }}</span><span v-if="itemParts(item).unit" class="u">{{ itemParts(item).unit }}</span></span></td><td class="num list-code last-report-cell">{{ hasItemValue(item) ? (item.updatedAt || '—') : '' }}</td><td class="col-status"><span :class="itemStatusLabel(item) === '在线' ? 'badge ok' : 'badge muted'">{{ itemStatusLabel(item) }}</span></td><td class="col-flag"><span :class="item.hasActiveAlarm ? 'badge danger' : 'badge muted'">{{ item.hasActiveAlarm ? '有' : '无' }}</span></td><td><span class="group-chip" :class="{ empty: itemGroup(item.id) === undefined }">{{ itemGroup(item.id) === undefined ? '未分组' : groupAliases[itemGroup(item.id)!] }}</span></td><td><button class="btn-link" type="button" @click.stop="openDdsatAnalyze(item)">分析</button></td></tr><tr v-if="!filteredItems.length"><td class="empty" colspan="10">当前筛选下无数据项</td></tr></tbody></table></div><Pager :page="dataItemsPage.page" :page-size="pageSize" :page-size-options="pageSizeOptions" :total-pages="dataItemsPage.totalPages" :total="dataItemsPage.total" @change="updatePage('dataItems', $event, dataItemsPage.totalPages)" @page-size-change="updatePageSize" @copy="copyCurrentPage('dataItems')" /></div></template></template>
++          <template v-else-if="activeTab === 'dataItems'"><div v-if="!detail.dataItems.length" class="blank-state">本设备暂无数据项</div><template v-else><div class="page-filter-bar"><div class="page-filter-row"><label class="field">测点<input v-model="diDraft.point" placeholder="编号 / 名称" @keyup.enter="applyDi"></label><label class="field">状态<MultiSelectField v-model="diDraft.statuses" :options="DATA_ITEM_STATUS_OPTIONS" label="数据项状态" /></label><label class="field">报警<SelectField v-model="diDraft.alarm" :options="[{ value: '', label: '全部' }, { value: 'yes', label: '有活跃' }, { value: 'no', label: '无活跃' }]" /></label><label class="field">是否信号<SelectField v-model="diDraft.isSignal" :options="[{ value: '', label: '全部' }, { value: 'yes', label: '是' }, { value: 'no', label: '否' }]" /></label><label class="field">是否有信号<SelectField v-model="diDraft.hasSignal" :options="[{ value: '', label: '全部' }, { value: 'yes', label: '是' }, { value: 'no', label: '否' }]" /></label><label class="field">数据项标签<SelectField v-model="diDraft.tag" :options="diTagOptions" /></label><label class="field">用户分组<SelectField v-model="diDraft.group" :options="[{ value: 'all', label: '全部' }, { value: 'ungrouped', label: '未分组' }, ...groupAliases.map((label, index) => ({ value: String(index), label }))]" /></label></div><div class="page-filter-actions"><button class="btn-sm primary" type="button" @click="applyDi">查询</button><button class="btn-sm" type="button" @click="resetDi">重置</button></div></div><div class="list-block"><div class="table-scroll"><table class="mini-table di-table list-table"><thead><tr><th>测点编号</th><th>测点名称</th><th>数据项</th><th>数据项展示名称</th><th>实时值</th><th>最近上报时间</th><th class="col-status">状态</th><th class="col-flag">报警</th><th>分组</th><th></th></tr></thead><tbody><tr v-for="(item, index) in dataItemsPage.rows" :key="item.id" :data-item-id="item.id" :class="{ 'active-item': secondary?.id === item.id }" @click="openItem(item)"><td v-if="dataItemsPage.spans[index]! > 0" class="merge-cell" :rowspan="dataItemsPage.spans[index]">{{ pointCode(item) }}</td><td v-if="dataItemsPage.spans[index]! > 0" class="merge-cell" :rowspan="dataItemsPage.spans[index]">{{ pointName(item) }}</td><td class="num di-code">{{ item.code }}</td><td>{{ item.displayName }}</td><td class="runtime-value-cell"><!-- 列表实时值只响应启用阈值，停用规则不参与（itemPillClass） --><span v-if="hasItemValue(item)" :class="itemPillClass(item)"><span class="n">{{ itemParts(item).value }}</span><span v-if="itemParts(item).unit" class="u">{{ itemParts(item).unit }}</span></span></td><td class="num list-code last-report-cell">{{ hasItemValue(item) ? (item.updatedAt || '—') : '' }}</td><td class="col-status"><span :class="itemStatusLabel(item) === '在线' ? 'badge ok' : 'badge muted'">{{ itemStatusLabel(item) }}</span></td><td class="col-flag"><span :class="item.hasActiveAlarm ? 'badge danger' : 'badge muted'">{{ item.hasActiveAlarm ? '有' : '无' }}</span></td><td><span class="group-chip" :class="{ empty: itemGroup(item.id) === undefined }">{{ itemGroup(item.id) === undefined ? '未分组' : groupAliases[itemGroup(item.id)!] }}</span></td><td><button class="btn-link" type="button" @click.stop="openItemTrend(item)">分析</button></td></tr><tr v-if="!filteredItems.length"><td class="empty" colspan="10">当前筛选下无数据项</td></tr></tbody></table></div><Pager :page="dataItemsPage.page" :page-size="pageSize" :page-size-options="pageSizeOptions" :total-pages="dataItemsPage.totalPages" :total="dataItemsPage.total" @change="updatePage('dataItems', $event, dataItemsPage.totalPages)" @page-size-change="updatePageSize" @copy="copyCurrentPage('dataItems')" /></div></template></template>
+           <template v-else-if="activeTab === 'alarms'">
+             <div class="page-filter-bar">
+               <div class="page-filter-row alarm-filters">
+               <div class="field di-field-msel">状态
+                 <div class="msel" :class="{ 'is-open': alarmMselOpen === 'progress' }" data-msel="progress">
+                   <div class="msel-trigger" role="combobox" tabindex="0" aria-haspopup="listbox" :aria-expanded="alarmMselOpen === 'progress'" aria-label="状态筛选" @click.stop="alarmMselOpen = alarmMselOpen === 'progress' ? null : 'progress'">
+                     <span class="msel-tags">
+                       <span v-if="alarmDraft.progress == null" class="msel-placeholder">全部</span>
+                       <span v-for="value in alarmDraft.progress || []" :key="value" class="msel-chip"><span class="msel-chip-label">{{ value }}</span><button type="button" class="msel-chip-x" :aria-label="`移除${value}`" @click.stop="setAlarmMulti('progress', alarmSelected('progress').filter(item => item !== value))">×</button></span>
+                     </span>
+@@ -1699,20 +1715,24 @@ function setSummaryDrill(kind: string, extra?: { progress?: AlarmProgress; sever
+           <template v-else-if="activeTab === 'thresholds'"><div v-if="!detail.thresholds.length" class="blank-state blank-state--with-action">
+               <span>本设备暂无绑定阈值</span>
+               <button class="btn-sm primary" type="button" @click="openConfig('threshold', '')">去配置</button>
+             </div><template v-else><div class="page-filter-bar"><div class="page-filter-row"><label class="field">数据项<input v-model="textFilters.thresholds.dataItem" placeholder="三元组 / 编码 / 名称"></label><label class="field">编码<input v-model="textFilters.thresholds.code" placeholder="编码"></label></div><div class="page-filter-actions"><button class="btn-sm primary" type="button" @click="applyText('thresholds')">查询</button><button class="btn-sm" type="button" @click="resetText('thresholds')">重置</button></div><span v-if="!canEdit" class="hint">当前无阈值编辑权限（只读）</span></div><div class="list-block"><div class="table-scroll"><table class="mini-table list-table"><thead><tr><th>数据项</th><th>编码</th><th>条件</th><th>报警等级</th><th>状态</th><th>阈值</th><th></th></tr></thead><tbody><tr v-for="threshold in paginate(filteredThresholds, 'thresholds').rows" :key="threshold.id" :data-threshold-id="threshold.id" :class="{ 'highlight-threshold-row': highlightedThresholdId === threshold.id }"><td class="num list-code" :title="thresholdTriple(threshold)">{{ thresholdTriple(threshold) }}</td><td class="num list-code">{{ threshold.ruleCode || threshold.modelCode || '—' }}</td><td>{{ threshold.condition || '—' }}</td><td><span :class="levelBadgeClass(threshold.level)">{{ threshold.level }}</span></td><td class="col-status"><span :class="threshold.status === '启用' ? 'badge ok' : 'badge muted'">{{ threshold.status || '—' }}</span></td><td><div v-if="isTwoValueThreshold(threshold)" class="th-val-dual-box"><input class="th-val th-val-dual" type="number" step="any" placeholder="X" :disabled="!canEdit" :value="thresholdDraft[threshold.id]" @input="markThresholdChanged(threshold.id, Number(($event.target as HTMLInputElement).value))" @blur="markThresholdBlurred(threshold)"><span class="th-val-sep">~</span><input class="th-val th-val-dual" type="number" step="any" placeholder="Y" :disabled="!canEdit" :value="thresholdDraftY[threshold.id]" @input="markThresholdYChanged(threshold.id, Number(($event.target as HTMLInputElement).value))" @blur="markThresholdBlurred(threshold)"><span class="muted">{{ threshold.unit || '' }}</span></div><template v-else><input class="th-val" type="number" step="any" :disabled="!canEdit" :value="thresholdDraft[threshold.id]" @input="markThresholdChanged(threshold.id, Number(($event.target as HTMLInputElement).value))" @blur="markThresholdBlurred(threshold)"><span class="muted">{{ threshold.unit || '' }}</span></template></td><td class="th-row-actions"><button v-if="canEdit" class="btn-link" type="button" :class="{ 'is-disabled': !changedThresholds[threshold.id] }" :disabled="!changedThresholds[threshold.id]" @click="saveThreshold(threshold)">保存</button><button class="btn-link" type="button" title="新标签打开阈值规则" @click.stop="openConfig('threshold', threshold.id)">配置</button></td></tr><tr v-if="!filteredThresholds.length"><td class="empty" colspan="7">当前筛选下无阈值</td></tr></tbody></table></div><Pager :page="paginate(filteredThresholds, 'thresholds').page" :page-size="pageSize" :page-size-options="pageSizeOptions" :total-pages="paginate(filteredThresholds, 'thresholds').totalPages" :total="paginate(filteredThresholds, 'thresholds').total" @change="updatePage('thresholds', $event, paginate(filteredThresholds, 'thresholds').totalPages)" @page-size-change="updatePageSize" @copy="copyCurrentPage('thresholds')" /></div></template></template>
+           <template v-else-if="activeTab === 'rules'"><div v-if="!detail.rules.length" class="blank-state">本设备暂无绑定规则</div><template v-else><div class="page-filter-bar"><div class="page-filter-row"><label class="field">规则编码<input v-model="textFilters.rules.code" placeholder="规则编码"></label><label class="field">算法名称<input v-model="textFilters.rules.algorithmName" placeholder="算法名称"></label><label class="field">算法编码<input v-model="textFilters.rules.algorithmCode" placeholder="算法编码"></label></div><div class="page-filter-actions"><button class="btn-sm primary" type="button" @click="applyText('rules')">查询</button><button class="btn-sm" type="button" @click="resetText('rules')">重置</button></div></div><div class="list-block"><div class="table-scroll"><table class="mini-table list-table"><thead><tr><th>规则编码</th><th>规则名称</th><th>报警消息</th><th>算法名称</th><th>算法编码</th><th></th></tr></thead><tbody><tr v-for="rule in paginate(filteredRules, 'rules').rows" :key="rule.id"><td class="num list-code">{{ rule.code }}</td><td>{{ rule.name }}</td><td><button class="btn-link" type="button" title="查看报警消息" @click="openRuleAlarm(rule)">查看</button></td><td>{{ rule.algorithmName || '—' }}</td><td class="num list-code">{{ rule.algorithmCode || '—' }}</td><td><button class="btn-link" type="button" @click="openIplatModelConfig(rule.modelId || rule.id)">配置</button></td></tr><tr v-if="!filteredRules.length"><td class="empty" colspan="6">当前筛选下无规则</td></tr></tbody></table></div><Pager :page="paginate(filteredRules, 'rules').page" :page-size="pageSize" :page-size-options="pageSizeOptions" :total-pages="paginate(filteredRules, 'rules').totalPages" :total="paginate(filteredRules, 'rules').total" @change="updatePage('rules', $event, paginate(filteredRules, 'rules').totalPages)" @page-size-change="updatePageSize" @copy="copyCurrentPage('rules')" /></div></template></template>
+           <template v-else-if="activeTab === 'models'"><div v-if="!detail.models.length" class="blank-state">本设备暂无绑定模型</div><template v-else><div class="page-filter-bar"><div class="page-filter-row"><label class="field">AI编码<input v-model="textFilters.models.aiCode" placeholder="AI编码"></label><label class="field">模型编码<input v-model="textFilters.models.code" placeholder="模型编码"></label><label class="field">模型名称<input v-model="textFilters.models.name" placeholder="模型名称"></label></div><div class="page-filter-actions"><button class="btn-sm primary" type="button" @click="applyText('models')">查询</button><button class="btn-sm" type="button" @click="resetText('models')">重置</button></div></div><div class="list-block"><div class="table-scroll"><table class="mini-table list-table"><thead><tr><th>AI编码</th><th>模型编码</th><th>模型名称</th><th>模型分类</th><th>最近调用时间</th><th></th></tr></thead><tbody><tr v-for="model in paginate(filteredModels, 'models').rows" :key="model.id"><td class="num list-code">{{ model.aiCode || '—' }}</td><td class="num list-code">{{ model.code }}</td><td>{{ model.name }}</td><td>{{ model.category }}</td><td class="num list-code">{{ model.lastCallAt || '—' }}</td><td><button class="btn-link" type="button" @click="openDmsuiConfig(model)">配置</button></td></tr><tr v-if="!filteredModels.length"><td class="empty" colspan="6">当前筛选下无模型</td></tr></tbody></table></div><Pager :page="paginate(filteredModels, 'models').page" :page-size="pageSize" :page-size-options="pageSizeOptions" :total-pages="paginate(filteredModels, 'models').totalPages" :total="paginate(filteredModels, 'models').total" @change="updatePage('models', $event, paginate(filteredModels, 'models').totalPages)" @page-size-change="updatePageSize" @copy="copyCurrentPage('models')" /></div></template></template>
+         </div>
+       </template>
+     </aside>
+     </template>
++    <div v-if="trendOpen" class="drawer-mask drawer-mask-l2 open" @click="closeItemTrend" />
++    <aside v-if="trendOpen && trendItem" class="drawer drawer-l2 open" :style="secondaryStyle" aria-label="数据项趋势">
++      <TrendPanel :trend="trendLoad" :picker="trendPicker" :theme="drawerTheme" />
++    </aside>
+     <DataItemDetailDrawer
+       :open="showSecondary"
+       :item="secondary"
+       :device="detail"
+       :thresholds="secondaryThresholds"
+       :loading="loading"
+       :error-message="errorMessage"
+       :can-edit="canEdit"
+       :standalone="standalone"
+       :drawer-style="secondaryStyle"
+diff --git a/src/views/wgMyDevice/styles/device-drawer.css b/src/views/wgMyDevice/styles/device-drawer.css
+index 220451b..24f7f94 100644
+--- a/src/views/wgMyDevice/styles/device-drawer.css
++++ b/src/views/wgMyDevice/styles/device-drawer.css
+@@ -287,20 +287,26 @@ table.device-table .empty {
+   box-shadow: -20px 0 56px rgba(0,0,0,0.55);
+   border-left-color: rgba(62, 198, 232, 0.35);
+ }
+ .drawer-l2.standalone {
+   width: 70vw;
+   max-width: 100vw;
+ }
+ .drawer-l2 .drawer-head {
+   border-bottom-color: rgba(62, 198, 232, 0.18);
+ }
++.drawer-l2 > .dit-panel {
++  flex: 1;
++  min-height: 0;
++  overflow: auto;
++  padding: 14px 16px;
++}
+ 
+ /* 左缘拖动手柄：调整抽屉宽度 */
+ .drawer-resize {
+   position: absolute;
+   left: 0; top: 0; bottom: 0;
+   width: 10px;
+   margin-left: -5px;
+   cursor: col-resize;
+   z-index: 5;
+   touch-action: none;

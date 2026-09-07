@@ -1,0 +1,181 @@
+# Review package: df7521794aa12558f848049151820cccebb98c03..4de689a214c3f508c28a2c8bb53913e9dc24a29d
+
+## Commits
+4de689a feat: parse aggregate series and build shared-axis chart option
+
+## Files changed
+ src/domain/chartOption.ts | 83 +++++++++++++++++++++++++++++++++++++++++++++++
+ tests/chartOption.test.ts | 75 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 158 insertions(+)
+
+## Diff
+diff --git a/src/domain/chartOption.ts b/src/domain/chartOption.ts
+new file mode 100644
+index 0000000..9dc0ad6
+--- /dev/null
++++ b/src/domain/chartOption.ts
+@@ -0,0 +1,83 @@
++import { itemKey } from './identity'
++import type { ThresholdMark } from './mapThreshold'
++import type { TrendItemIdentity } from '../types'
++
++export interface ThemeTokens {
++  danger: string
++  warning: string
++  notice: string
++}
++
++export const defaultTokens: ThemeTokens = {
++  danger: '#ff6b6b',
++  warning: '#ff8a2b',
++  notice: '#4d9eff',
++}
++
++export interface ChartSeriesInput {
++  item: TrendItemIdentity
++  times: number[]
++  values: (number | null)[]
++}
++
++export interface BuildChartOptionInput {
++  series: ChartSeriesInput[]
++  showThresholds: boolean
++  marks: ThresholdMark[]
++  themeTokens: ThemeTokens
++}
++
++function seriesName(item: TrendItemIdentity): string {
++  return item.displayName || item.kpiId
++}
++
++function levelColor(level: ThresholdMark['level'], tokens: ThemeTokens): string {
++  if (level === '危险') return tokens.danger
++  if (level === '警告') return tokens.warning
++  return tokens.notice
++}
++
++export function parseAggregateData(payload: any): { times: number[]; values: (number | null)[] } {
++  const data = payload?.data
++  if (data == null) return { times: [], values: [] }
++  const timestamps: unknown[] = Array.isArray(data.timestamps) ? data.timestamps : []
++  const rawValues: unknown[] = Array.isArray(data.values?.[0]) ? data.values[0] : []
++  return {
++    times: timestamps.map(t => Number(t) / 1e6),
++    values: rawValues as (number | null)[],
++  }
++}
++
++export function buildChartOption(input: BuildChartOptionInput) {
++  const { series, showThresholds, marks, themeTokens } = input
++
++  return {
++    xAxis: { type: 'time' },
++    yAxis: { type: 'value' },
++    legend: { data: series.map(s => seriesName(s.item)) },
++    series: series.map(s => {
++      const key = itemKey(s.item)
++      const matchedMarks = showThresholds ? marks.filter(m => m.itemKey === key) : []
++      const option: Record<string, unknown> = {
++        type: 'line',
++        name: seriesName(s.item),
++        data: s.times.map((t, i) => [t, s.values[i] ?? null]),
++      }
++      if (matchedMarks.length > 0) {
++        option.markLine = {
++          symbol: 'none',
++          data: matchedMarks.map(m => ({
++            yAxis: m.y,
++            name: m.label,
++            label: { formatter: m.label },
++            lineStyle: {
++              type: 'dashed',
++              color: levelColor(m.level, themeTokens),
++            },
++          })),
++        }
++      }
++      return option
++    }),
++  }
++}
+diff --git a/tests/chartOption.test.ts b/tests/chartOption.test.ts
+new file mode 100644
+index 0000000..b9aee46
+--- /dev/null
++++ b/tests/chartOption.test.ts
+@@ -0,0 +1,75 @@
++import { describe, expect, it } from 'vitest'
++import {
++  buildChartOption,
++  defaultTokens,
++  parseAggregateData,
++} from '../src/domain/chartOption'
++import type { ThresholdMark } from '../src/domain/mapThreshold'
++import type { TrendItemIdentity } from '../src/types'
++
++const item: TrendItemIdentity = {
++  deviceCode: 'DEV01',
++  pointId: '01',
++  kpiId: 'RMS',
++  displayName: 'RMS',
++}
++
++describe('parseAggregateData', () => {
++  it('treats code 200 data null as empty', () => {
++    expect(parseAggregateData({ code: 200, data: null })).toEqual({ times: [], values: [] })
++  })
++
++  it('converts nanosecond timestamps to ms', () => {
++    const parsed = parseAggregateData({
++      code: 200,
++      data: { timestamps: ['1777032984000000000'], values: [[1584.632]] },
++    })
++    expect(parsed.times[0]).toBe(1777032984000)
++    expect(parsed.values[0]).toBe(1584.632)
++  })
++})
++
++describe('buildChartOption', () => {
++  it('omits markLine when thresholds hidden', () => {
++    const option = buildChartOption({
++      series: [],
++      showThresholds: false,
++      marks: [{ itemKey: 'a', level: '危险', y: 1, label: '≥ 1' }],
++      themeTokens: defaultTokens,
++    })
++    expect(JSON.stringify(option)).not.toContain('markLine')
++  })
++
++  it('builds shared-axis line series and dashed markLines by level color', () => {
++    const marks: ThresholdMark[] = [
++      { itemKey: 'DEV01*01*RMS', level: '危险', y: 100, label: '危险' },
++      { itemKey: 'DEV01*01*RMS', level: '警告', y: 80, label: '警告' },
++      { itemKey: 'DEV01*01*RMS', level: '注意', y: 60, label: '注意' },
++    ]
++    const option = buildChartOption({
++      series: [{ item, times: [1, 2], values: [10, 20] }],
++      showThresholds: true,
++      marks,
++      themeTokens: defaultTokens,
++    })
++
++    expect(option.yAxis).toEqual(expect.objectContaining({ type: 'value' }))
++    expect(Array.isArray(option.yAxis) ? option.yAxis : [option.yAxis]).toHaveLength(1)
++    expect(option.series).toHaveLength(1)
++    expect(option.series[0]).toEqual(expect.objectContaining({
++      type: 'line',
++      name: 'RMS',
++      data: [[1, 10], [2, 20]],
++    }))
++
++    const markLine = (option.series[0] as { markLine: { data: Array<{ yAxis: number; lineStyle: { type: string; color: string } }> } }).markLine
++    expect(markLine.data).toHaveLength(3)
++    expect(markLine.data.every(d => d.lineStyle.type === 'dashed')).toBe(true)
++    expect(markLine.data.map(d => d.lineStyle.color)).toEqual([
++      defaultTokens.danger,
++      defaultTokens.warning,
++      defaultTokens.notice,
++    ])
++    expect(markLine.data.map(d => d.yAxis)).toEqual([100, 80, 60])
++  })
++})

@@ -53,7 +53,7 @@ const theme: Theme = 'remote-blue'
 
 未传时间时，默认最近 2 小时。待选参数为空则不渲染待选区域。
 
-完整需求见 [docs/需求说明.md](docs/需求说明.md)。
+完整需求见 [docs/需求说明.md](docs/需求说明.md)。实现计划见 [docs/superpowers/plans/2026-09-06-data-item-trend.md](docs/superpowers/plans/2026-09-06-data-item-trend.md)，SDD 记录见 [.superpowers/sdd/progress.md](.superpowers/sdd/progress.md)。
 
 ## 开发
 

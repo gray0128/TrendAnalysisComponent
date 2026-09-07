@@ -1,0 +1,437 @@
+# Review package: 55a6939fc5d2d0bdee155783600fdacc1a38726c..80f57dd2029daa2a740a15ab34f9ccade2ab2790
+
+## Commits
+80f57dd fix: cap TrendPanel series at 8 and ignore stale loads
+0f1dc02 feat: wire TrendPanel load, picker, and query flow
+
+## Files changed
+ src/components/TrendPanel.vue | 182 ++++++++++++++++++++++++++++++++++++++++++
+ src/index.ts                  |   1 +
+ src/styles/panel.css          |  25 ++++++
+ tests/panel.test.ts           | 177 ++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 385 insertions(+)
+
+## Diff
+diff --git a/src/components/TrendPanel.vue b/src/components/TrendPanel.vue
+new file mode 100644
+index 0000000..1608d2d
+--- /dev/null
++++ b/src/components/TrendPanel.vue
+@@ -0,0 +1,182 @@
++<script setup lang="ts">
++import { computed, ref, watch } from 'vue'
++import { capSeries } from '../limits'
++import { resolveTimeWindow } from '../time'
++import { itemKey } from '../domain/identity'
++import { buildChartOption, defaultTokens, parseAggregateData } from '../domain/chartOption'
++import type { ChartSeriesInput } from '../domain/chartOption'
++import { fetchDeviceDataItems } from '../api/dataItems'
++import { fetchAggregateTrend } from '../api/trend'
++import type { PickerInput, Theme, TrendItemIdentity, TrendLoadInput } from '../types'
++import TrendQueryBar from './TrendQueryBar.vue'
++import TrendChart from './TrendChart.vue'
++import TrendPicker from './TrendPicker.vue'
++import '../styles/panel.css'
++
++const props = defineProps<{
++  trend: TrendLoadInput
++  picker?: PickerInput | null
++  theme?: Theme
++}>()
++
++const initialWindow = resolveTimeWindow(props.trend.startTimeMs, props.trend.endTimeMs)
++const startTimeMs = ref(initialWindow.startTimeMs)
++const endTimeMs = ref(initialWindow.endTimeMs)
++const candidates = ref<TrendItemIdentity[]>([])
++const selected = ref<TrendItemIdentity[]>([])
++const showThresholds = ref(false)
++const failedKeys = ref<string[]>([])
++const chartOption = ref<Record<string, unknown>>(emptyOption())
++const selectedOverflow = ref(false)
++let loadGeneration = 0
++
++const overflowNotice = computed(
++  () => capSeries(props.trend.items).overflow > 0 || selectedOverflow.value,
++)
++const hasPicker = computed(() => props.picker != null)
++
++function emptyOption() {
++  return buildChartOption({
++    series: [],
++    showThresholds: false,
++    marks: [],
++    themeTokens: defaultTokens,
++  })
++}
++
++function matchSelected(cappedItems: TrendItemIdentity[]) {
++  const keys = new Set(cappedItems.map(itemKey))
++  return candidates.value.filter(item => keys.has(itemKey(item)))
++}
++
++async function hydrate() {
++  const generation = ++loadGeneration
++  const capped = capSeries(props.trend.items)
++  const window = resolveTimeWindow(props.trend.startTimeMs, props.trend.endTimeMs)
++  startTimeMs.value = window.startTimeMs
++  endTimeMs.value = window.endTimeMs
++
++  const picker = props.picker
++  if (picker == null) {
++    if (generation !== loadGeneration) return
++    candidates.value = []
++    selected.value = capped.items
++    await loadTrends(generation)
++    return
++  }
++
++  let nextCandidates: TrendItemIdentity[]
++  if (picker.type === 'device') {
++    nextCandidates = await fetchDeviceDataItems(picker.deviceCode)
++  } else {
++    nextCandidates = picker.items
++  }
++  if (generation !== loadGeneration) return
++  candidates.value = nextCandidates
++  selected.value = matchSelected(capped.items)
++  await loadTrends(generation)
++}
++
++async function loadTrends(generation = ++loadGeneration) {
++  if (generation !== loadGeneration) return
++
++  const capped = capSeries(selected.value)
++  selectedOverflow.value = capped.overflow > 0
++  const items = capped.items
++  if (capped.overflow > 0) {
++    selected.value = items
++  }
++
++  if (items.length === 0) {
++    failedKeys.value = []
++    chartOption.value = emptyOption()
++    return
++  }
++
++  const start = startTimeMs.value
++  const end = endTimeMs.value
++  const results = await Promise.all(items.map(async (item) => {
++    try {
++      const payload = await fetchAggregateTrend(item, start, end)
++      return { ok: true as const, item, parsed: parseAggregateData(payload) }
++    } catch {
++      return { ok: false as const, item }
++    }
++  }))
++
++  if (generation !== loadGeneration) return
++
++  const failed: string[] = []
++  const series: ChartSeriesInput[] = []
++  for (const result of results) {
++    if (result.ok) {
++      series.push({
++        item: result.item,
++        times: result.parsed.times,
++        values: result.parsed.values,
++      })
++    } else {
++      failed.push(itemKey(result.item))
++    }
++  }
++
++  failedKeys.value = failed
++  chartOption.value = buildChartOption({
++    series,
++    showThresholds: false,
++    marks: [],
++    themeTokens: defaultTokens,
++  })
++}
++
++function onWindowChange(next: { startTimeMs: number; endTimeMs: number }) {
++  startTimeMs.value = next.startTimeMs
++  endTimeMs.value = next.endTimeMs
++}
++
++function onQuery() {
++  void loadTrends()
++}
++
++function onUpdateSelected(items: TrendItemIdentity[]) {
++  selected.value = items
++  void loadTrends()
++}
++
++watch(
++  () => [props.trend, props.picker] as const,
++  () => {
++    void hydrate()
++  },
++  { immediate: true, deep: true },
++)
++</script>
++
++<template>
++  <div class="dit-panel" :data-theme="theme">
++    <div class="dit-query">
++      <TrendQueryBar
++        :start-time-ms="startTimeMs"
++        :end-time-ms="endTimeMs"
++        @change="onWindowChange"
++        @query="onQuery"
++      />
++      <label class="dit-threshold">
++        <input v-model="showThresholds" type="checkbox">
++        阈值线
++      </label>
++    </div>
++    <p v-if="overflowNotice" class="dit-notice">最多加载 8 个数据项，其余未加载</p>
++    <p v-if="failedKeys.length" class="dit-failed">
++      {{ failedKeys.join('、') }} 加载失败
++    </p>
++    <TrendChart :option="chartOption" />
++    <div v-if="hasPicker" class="dit-picker">
++      <TrendPicker
++        :candidates="candidates"
++        :selected="selected"
++        @update:selected="onUpdateSelected"
++      />
++    </div>
++  </div>
++</template>
+diff --git a/src/index.ts b/src/index.ts
+index dbfdc71..16174e1 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1,6 +1,7 @@
+ export {
+   THEMES, MAX_TREND_SERIES, DEFAULT_WINDOW_MS, AGGREGATE_FUNC, RESERVE_DECIMAL,
+ } from './types'
+ export type {
+   Theme, TrendItemIdentity, TrendLoadInput, PickerInput, TrendRequest, PluginOptions,
+ } from './types'
++export { default as TrendPanel } from './components/TrendPanel.vue'
+diff --git a/src/styles/panel.css b/src/styles/panel.css
+index 6112265..90fdb41 100644
+--- a/src/styles/panel.css
++++ b/src/styles/panel.css
+@@ -25,10 +25,35 @@
+ .trend-picker__item {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   font: inherit;
+ }
+ 
+ .trend-picker__notice {
+   margin: 4px 0 0;
+ }
++
++.dit-panel {
++  display: flex;
++  flex-direction: column;
++  gap: 8px;
++}
++
++.dit-query {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: center;
++  gap: 8px;
++}
++
++.dit-threshold {
++  margin-left: auto;
++  display: flex;
++  align-items: center;
++  gap: 6px;
++}
++
++.dit-notice,
++.dit-failed {
++  margin: 0;
++}
+diff --git a/tests/panel.test.ts b/tests/panel.test.ts
+new file mode 100644
+index 0000000..ab4e7a1
+--- /dev/null
++++ b/tests/panel.test.ts
+@@ -0,0 +1,177 @@
++import { beforeEach, describe, expect, it, vi } from 'vitest'
++import { flushPromises, mount } from '@vue/test-utils'
++import type { TrendItemIdentity } from '../src/types'
++
++vi.mock('echarts', () => ({
++  init: () => ({
++    setOption: vi.fn(),
++    dispose: vi.fn(),
++  }),
++}))
++
++vi.mock('../src/api/dataItems', () => ({
++  fetchDeviceDataItems: vi.fn(),
++}))
++vi.mock('../src/api/trend', () => ({
++  fetchAggregateTrend: vi.fn(),
++}))
++vi.mock('../src/api/thresholds', () => ({
++  fetchEnabledThresholds: vi.fn(),
++}))
++
++import { fetchDeviceDataItems } from '../src/api/dataItems'
++import { fetchAggregateTrend } from '../src/api/trend'
++import { fetchEnabledThresholds } from '../src/api/thresholds'
++import TrendPanel from '../src/components/TrendPanel.vue'
++import TrendChart from '../src/components/TrendChart.vue'
++import TrendPicker from '../src/components/TrendPicker.vue'
++import { MAX_TREND_SERIES } from '../src/types'
++
++function deferred<T>() {
++  let resolve!: (value: T) => void
++  const promise = new Promise<T>(r => {
++    resolve = r
++  })
++  return { promise, resolve }
++}
++
++function seriesData(wrapper: ReturnType<typeof mount>) {
++  const option = wrapper.findComponent(TrendChart).props('option') as {
++    series: { data: [number, number | null][] }[]
++  }
++  return option.series.map(s => s.data)
++}
++
++function item(i: number): TrendItemIdentity {
++  return {
++    deviceCode: 'DEV',
++    pointId: '01',
++    kpiId: `KPI_${i}`,
++    displayName: `数据项${i}`,
++  }
++}
++
++describe('TrendPanel', () => {
++  beforeEach(() => {
++    vi.mocked(fetchDeviceDataItems).mockReset()
++    vi.mocked(fetchAggregateTrend).mockReset()
++    vi.mocked(fetchEnabledThresholds).mockReset()
++    vi.mocked(fetchDeviceDataItems).mockResolvedValue([])
++    vi.mocked(fetchAggregateTrend).mockResolvedValue({ code: 200, data: null })
++    vi.mocked(fetchEnabledThresholds).mockResolvedValue([])
++  })
++
++  it('does not render .dit-picker when picker is omitted', async () => {
++    const wrapper = mount(TrendPanel, {
++      props: { trend: { items: [item(0)] } },
++    })
++    await flushPromises()
++    expect(wrapper.find('.dit-picker').exists()).toBe(false)
++  })
++
++  it('does not fetch trends when nothing is selected', async () => {
++    mount(TrendPanel, {
++      props: { trend: { items: [] } },
++    })
++    await flushPromises()
++    expect(fetchAggregateTrend).not.toHaveBeenCalled()
++  })
++
++  it('selects the matching device-list item and fetches that trend once', async () => {
++    const list = [item(0), item(1), item(2)]
++    vi.mocked(fetchDeviceDataItems).mockResolvedValue(list)
++
++    const wrapper = mount(TrendPanel, {
++      props: {
++        trend: { items: [{ deviceCode: 'DEV', pointId: '01', kpiId: 'KPI_0' }] },
++        picker: { type: 'device', deviceCode: 'DEV' },
++      },
++    })
++    await flushPromises()
++
++    expect(fetchDeviceDataItems).toHaveBeenCalledWith('DEV')
++    const boxes = wrapper.findAll('.dit-picker input[type="checkbox"]')
++    expect(boxes).toHaveLength(3)
++    expect((boxes[0].element as HTMLInputElement).checked).toBe(true)
++    expect((boxes[1].element as HTMLInputElement).checked).toBe(false)
++    expect((boxes[2].element as HTMLInputElement).checked).toBe(false)
++    expect(fetchAggregateTrend).toHaveBeenCalledTimes(1)
++    expect(fetchAggregateTrend).toHaveBeenCalledWith(
++      list[0],
++      expect.any(Number),
++      expect.any(Number),
++    )
++  })
++
++  it('does not request thresholds by default', async () => {
++    const wrapper = mount(TrendPanel, {
++      props: { trend: { items: [item(0)] } },
++    })
++    await flushPromises()
++    expect(wrapper.text()).toContain('阈值线')
++    expect(fetchEnabledThresholds).not.toHaveBeenCalled()
++  })
++
++  it('fetches at most 8 series when 9 trend.items are given without a picker', async () => {
++    const items = Array.from({ length: 9 }, (_, i) => item(i))
++    const wrapper = mount(TrendPanel, {
++      props: { trend: { items } },
++    })
++    await flushPromises()
++
++    expect(fetchAggregateTrend).toHaveBeenCalledTimes(MAX_TREND_SERIES)
++    expect(wrapper.text()).toContain('最多加载 8 个数据项，其余未加载')
++  })
++
++  it('fetches at most 8 series when selected somehow exceeds the cap', async () => {
++    const nine = Array.from({ length: 9 }, (_, i) => item(i))
++    const wrapper = mount(TrendPanel, {
++      props: {
++        trend: { items: nine.slice(0, 8) },
++        picker: { type: 'items', items: nine },
++      },
++    })
++    await flushPromises()
++    vi.mocked(fetchAggregateTrend).mockClear()
++
++    wrapper.findComponent(TrendPicker).vm.$emit('update:selected', nine)
++    await flushPromises()
++
++    expect(fetchAggregateTrend).toHaveBeenCalledTimes(MAX_TREND_SERIES)
++    const checked = wrapper
++      .findAll('.dit-picker input[type="checkbox"]')
++      .filter(box => (box.element as HTMLInputElement).checked)
++    expect(checked).toHaveLength(MAX_TREND_SERIES)
++    expect(wrapper.text()).toContain('最多加载 8 个数据项，其余未加载')
++  })
++
++  it('ignores a stale trend response after a newer query', async () => {
++    const first = deferred<unknown>()
++    vi.mocked(fetchAggregateTrend)
++      .mockImplementationOnce(() => first.promise)
++      .mockResolvedValue({
++        code: 200,
++        data: { timestamps: [1_000_000], values: [[1]] },
++      })
++
++    const wrapper = mount(TrendPanel, {
++      props: { trend: { items: [item(0)] } },
++    })
++    await flushPromises()
++    expect(fetchAggregateTrend).toHaveBeenCalledTimes(1)
++
++    const queryBtn = wrapper.findAll('button').find(b => b.text() === '查询')
++    expect(queryBtn).toBeTruthy()
++    await queryBtn!.trigger('click')
++    await flushPromises()
++    expect(fetchAggregateTrend).toHaveBeenCalledTimes(2)
++    expect(seriesData(wrapper)).toEqual([[[1, 1]]])
++
++    first.resolve({
++      code: 200,
++      data: { timestamps: [2_000_000], values: [[99]] },
++    })
++    await flushPromises()
++    expect(seriesData(wrapper)).toEqual([[[1, 1]]])
++  })
++})
