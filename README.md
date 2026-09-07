@@ -49,11 +49,11 @@ const theme: Theme = 'remote-blue'
 </template>
 ```
 
-也可使用包内可选外壳 `TrendDrawer` / `TrendModal`。
+也可使用包内可选外壳 `TrendDrawer`（缺省抽屉，`widthPercent` 为页面宽度百分比）/ `TrendModal`（`size`：`default` / `large` / `xlarge` / `fullscreen`）。
 
 未传时间时，默认最近 2 小时。待选参数为空则不渲染待选区域。
 
-完整需求见 [docs/需求说明.md](docs/需求说明.md)。实现计划见 [docs/superpowers/plans/2026-09-06-data-item-trend.md](docs/superpowers/plans/2026-09-06-data-item-trend.md)，SDD 记录见 [.superpowers/sdd/progress.md](.superpowers/sdd/progress.md)。
+宿主接入步骤、入参和故障排查见 [docs/接入指南.md](docs/接入指南.md)。完整需求见 [docs/需求说明.md](docs/需求说明.md)。实现计划见 [docs/superpowers/plans/2026-09-06-data-item-trend.md](docs/superpowers/plans/2026-09-06-data-item-trend.md)，SDD 记录见 [.superpowers/sdd/progress.md](.superpowers/sdd/progress.md)。
 
 ## 开发
 

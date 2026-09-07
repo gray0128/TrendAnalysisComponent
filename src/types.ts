@@ -16,6 +16,36 @@ export const DEFAULT_WINDOW_MS = 2 * 60 * 60 * 1000
 export const AGGREGATE_FUNC = 2
 export const RESERVE_DECIMAL = 3
 
+export type ShellVariant = 'drawer' | 'modal'
+
+export const SHELL_VARIANTS: readonly ShellVariant[] = ['drawer', 'modal']
+
+export const DEFAULT_DRAWER_WIDTH_PERCENT = 70
+export const MIN_DRAWER_WIDTH_PERCENT = 20
+export const MAX_DRAWER_WIDTH_PERCENT = 100
+
+export function clampDrawerWidthPercent(value?: number | null): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_DRAWER_WIDTH_PERCENT
+  return Math.min(
+    MAX_DRAWER_WIDTH_PERCENT,
+    Math.max(MIN_DRAWER_WIDTH_PERCENT, Math.round(value)),
+  )
+}
+
+export type ModalSize = 'default' | 'large' | 'xlarge' | 'fullscreen'
+
+export const MODAL_SIZES: readonly ModalSize[] = ['default', 'large', 'xlarge', 'fullscreen']
+
+export function resolveModalSize(size?: string | null): ModalSize {
+  if (MODAL_SIZES.includes(size as ModalSize)) return size as ModalSize
+  return 'default'
+}
+
+export function resolveShellVariant(variant?: string | null): ShellVariant {
+  if (SHELL_VARIANTS.includes(variant as ShellVariant)) return variant as ShellVariant
+  return 'drawer'
+}
+
 export interface TrendItemIdentity {
   deviceCode: string
   pointId: string

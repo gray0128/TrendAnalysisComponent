@@ -74,10 +74,41 @@ describe('TrendPanel', () => {
   })
 
   it('does not fetch trends when nothing is selected', async () => {
-    mount(TrendPanel, {
+    const wrapper = mount(TrendPanel, {
       props: { trend: { items: [] } },
     })
     await flushPromises()
+    expect(fetchAggregateTrend).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('数据项清单不能为空')
+  })
+
+  it('hides picker and skips device list fetch when showPicker is false', async () => {
+    vi.mocked(fetchDeviceDataItems).mockResolvedValue([item(1)])
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: [item(0)] },
+        picker: { type: 'device', deviceCode: 'DEV' },
+        showPicker: false,
+      },
+    })
+    await flushPromises()
+    expect(wrapper.find('.dit-picker').exists()).toBe(false)
+    expect(fetchDeviceDataItems).not.toHaveBeenCalled()
+    expect(fetchAggregateTrend).toHaveBeenCalledTimes(1)
+  })
+
+  it('requires trend items when the picker area is hidden', async () => {
+    const wrapper = mount(TrendPanel, {
+      props: {
+        trend: { items: [] },
+        picker: { type: 'device', deviceCode: 'DEV' },
+        showPicker: false,
+      },
+    })
+    await flushPromises()
+    expect(wrapper.find('.dit-picker').exists()).toBe(false)
+    expect(wrapper.text()).toContain('数据项清单不能为空')
+    expect(fetchDeviceDataItems).not.toHaveBeenCalled()
     expect(fetchAggregateTrend).not.toHaveBeenCalled()
   })
 

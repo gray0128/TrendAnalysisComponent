@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { TrendPanel } from '../src/index'
-import type { PickerInput, Theme, TrendLoadInput } from '../src/types'
-import { THEMES } from '../src/types'
+import { TrendDrawer, TrendModal } from '../src/index'
+import type { ModalSize, PickerInput, Theme, TrendLoadInput } from '../src/types'
+import {
+  THEMES,
+  MODAL_SIZES,
+  clampDrawerWidthPercent,
+  resolveModalSize,
+  resolveShellVariant,
+} from '../src/types'
 import { mockSeedItem } from './mockRequest'
 
 const debug = reactive({
@@ -11,12 +17,26 @@ const debug = reactive({
   deviceCode: localStorage.getItem('trend.debug.deviceCode') || mockSeedItem.deviceCode,
   token: localStorage.getItem('trend.debug.token') || '',
   userId: localStorage.getItem('trend.debug.userId') || '',
+  showPicker: localStorage.getItem('trend.debug.showPicker') !== '0',
+  shell: resolveShellVariant(localStorage.getItem('trend.debug.shell')),
+  drawerWidthPercent: clampDrawerWidthPercent(
+    (() => {
+      const stored = localStorage.getItem('trend.debug.drawerWidthPercent')
+      return stored == null ? undefined : Number(stored)
+    })(),
+  ),
+  modalSize: resolveModalSize(localStorage.getItem('trend.debug.modalSize')),
 })
 
 const panelKey = ref(0)
 
 const trend = computed<TrendLoadInput>(() => ({
-  items: [],
+  items: debug.showPicker
+    ? []
+    : [{
+        ...mockSeedItem,
+        deviceCode: debug.deviceCode,
+      }],
 }))
 
 const picker = computed<PickerInput>(() => ({
@@ -31,6 +51,10 @@ function persist() {
   localStorage.setItem('trend.debug.deviceCode', debug.deviceCode)
   localStorage.setItem('trend.debug.token', debug.token)
   localStorage.setItem('trend.debug.userId', debug.userId)
+  localStorage.setItem('trend.debug.showPicker', debug.showPicker ? '1' : '0')
+  localStorage.setItem('trend.debug.shell', debug.shell)
+  localStorage.setItem('trend.debug.drawerWidthPercent', String(debug.drawerWidthPercent))
+  localStorage.setItem('trend.debug.modalSize', debug.modalSize)
 }
 
 function apply() {
@@ -41,6 +65,33 @@ function apply() {
 function onTheme(theme: Theme) {
   debug.theme = theme
   persist()
+}
+
+function onShowPicker(show: boolean) {
+  debug.showPicker = show
+  persist()
+}
+
+function onShell(variant: string) {
+  debug.shell = resolveShellVariant(variant)
+  persist()
+}
+
+function onDrawerWidth(raw: string) {
+  debug.drawerWidthPercent = clampDrawerWidthPercent(Number(raw))
+  persist()
+}
+
+function onModalSize(size: string) {
+  debug.modalSize = resolveModalSize(size)
+  persist()
+}
+
+const modalSizeLabels: Record<ModalSize, string> = {
+  default: '默认',
+  large: '大',
+  xlarge: '更大',
+  fullscreen: '全屏',
 }
 </script>
 
@@ -62,6 +113,42 @@ function onTheme(theme: Theme) {
       <label>设备编码
         <input v-model="debug.deviceCode" placeholder="deviceCode">
       </label>
+      <label>待选区域
+        <select
+          :value="debug.showPicker ? '1' : '0'"
+          @change="onShowPicker(($event.target as HTMLSelectElement).value === '1')"
+        >
+          <option value="1">展示</option>
+          <option value="0">隐藏</option>
+        </select>
+      </label>
+      <label>外壳
+        <select
+          :value="debug.shell"
+          @change="onShell(($event.target as HTMLSelectElement).value)"
+        >
+          <option value="drawer">抽屉弹窗</option>
+          <option value="modal">普通弹窗</option>
+        </select>
+      </label>
+      <label v-if="debug.shell === 'drawer'">抽屉宽度
+        <input
+          type="number"
+          min="20"
+          max="100"
+          :value="debug.drawerWidthPercent"
+          @change="onDrawerWidth(($event.target as HTMLInputElement).value)"
+        >
+        %
+      </label>
+      <label v-else>弹窗大小
+        <select
+          :value="debug.modalSize"
+          @change="onModalSize(($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="id in MODAL_SIZES" :key="id" :value="id">{{ modalSizeLabels[id] }}</option>
+        </select>
+      </label>
       <template v-if="debug.mode === 'live'">
         <label>token
           <input v-model="debug.token" placeholder="x-token / token">
@@ -74,11 +161,24 @@ function onTheme(theme: Theme) {
       <span class="pg-hint">{{ debug.mode === 'mock' ? '不发真实请求' : '经 vite proxy 转发' }}</span>
     </header>
     <main class="pg-main">
-      <TrendPanel
+      <TrendDrawer
+        v-if="debug.shell === 'drawer'"
         :key="panelKey"
         :trend="trend"
         :picker="picker"
+        :show-picker="debug.showPicker"
         :theme="debug.theme"
+        :width-percent="debug.drawerWidthPercent"
+        diagnose-base-url="/ddsat/"
+      />
+      <TrendModal
+        v-else
+        :key="panelKey"
+        :trend="trend"
+        :picker="picker"
+        :show-picker="debug.showPicker"
+        :theme="debug.theme"
+        :size="debug.modalSize"
         diagnose-base-url="/ddsat/"
       />
     </main>
@@ -127,14 +227,12 @@ html, body, #app { height: 100%; margin: 0; }
   flex: 1;
   min-height: 0;
   display: flex;
+  position: relative;
   padding: 12px;
 }
-.pg-main > .dit-panel {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-panel);
-  box-shadow: var(--panel-shadow);
+.pg-main > .dit-shell {
+  position: absolute;
+  inset: 12px;
+  z-index: 1;
 }
 </style>

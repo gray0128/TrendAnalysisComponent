@@ -25,12 +25,15 @@ import TrendPicker from './TrendPicker.vue'
 import '../styles/tokens.css'
 import '../styles/panel.css'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   trend: TrendLoadInput
   picker?: PickerInput | null
+  showPicker?: boolean
   theme?: Theme
   diagnoseBaseUrl?: string
-}>()
+}>(), {
+  showPicker: true,
+})
 
 const initialWindow = resolveTimeWindow(props.trend.startTimeMs, props.trend.endTimeMs)
 const startTimeMs = ref(initialWindow.startTimeMs)
@@ -52,7 +55,10 @@ const loading = ref(true)
 const overflowNotice = computed(
   () => capSeries(props.trend.items).overflow > 0 || selectedOverflow.value,
 )
-const hasPicker = computed(() => props.picker != null)
+const hasPicker = computed(() => props.showPicker && props.picker != null)
+const emptyItemsNotice = computed(() =>
+  !hasPicker.value && props.trend.items.length === 0 ? '数据项清单不能为空' : '',
+)
 const resolvedTheme = computed(() =>
   resolveTheme(props.theme, document.documentElement.dataset.theme),
 )
@@ -101,7 +107,7 @@ async function hydrate() {
 
   let nextCandidates: TrendItemIdentity[] = []
   let nextPickerNotice = ''
-  const picker = props.picker
+  const picker = hasPicker.value ? props.picker : null
   if (picker != null) {
     if (picker.type === 'device') {
       try {
@@ -237,7 +243,7 @@ watch(showThresholds, async (on) => {
 })
 
 watch(
-  () => [props.trend, props.picker] as const,
+  () => [props.trend, props.picker, props.showPicker] as const,
   () => {
     void hydrate()
   },
@@ -266,6 +272,7 @@ watch(resolvedTheme, () => {
       </label>
     </div>
     <p v-if="overflowNotice" class="dit-notice">最多加载 {{ MAX_TREND_SERIES }} 个数据项，其余未加载</p>
+    <p v-if="emptyItemsNotice" class="dit-notice">{{ emptyItemsNotice }}</p>
     <p v-if="pickerNotice" class="dit-notice">{{ pickerNotice }}</p>
     <p v-if="diagnoseNotice" class="dit-notice">{{ diagnoseNotice }}</p>
     <p v-if="failedKeys.length" class="dit-failed">

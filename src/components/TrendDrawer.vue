@@ -1,16 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { resolveTheme } from '../types'
+import { clampDrawerWidthPercent, resolveTheme } from '../types'
 import type { PickerInput, Theme, TrendLoadInput } from '../types'
 import TrendPanel from './TrendPanel.vue'
 import '../styles/tokens.css'
 import '../styles/panel.css'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   trend: TrendLoadInput
   picker?: PickerInput | null
+  showPicker?: boolean
   theme?: Theme
-}>()
+  diagnoseBaseUrl?: string
+  widthPercent?: number
+}>(), {
+  showPicker: true,
+})
+
+const drawerWidth = computed(() => `${clampDrawerWidthPercent(props.widthPercent)}%`)
 
 const emit = defineEmits<{
   close: []
@@ -24,8 +31,14 @@ const resolvedTheme = computed(() =>
 <template>
   <div class="dit-root dit-shell" :data-theme="resolvedTheme">
     <div class="dit-drawer-mask" @click="emit('close')" />
-    <aside class="dit-drawer">
-      <TrendPanel :trend="trend" :picker="picker" :theme="theme" />
+    <aside class="dit-drawer" :style="{ width: drawerWidth }">
+      <TrendPanel
+        :trend="trend"
+        :picker="picker"
+        :show-picker="showPicker"
+        :theme="theme"
+        :diagnose-base-url="diagnoseBaseUrl"
+      />
     </aside>
   </div>
 </template>
