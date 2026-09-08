@@ -350,7 +350,7 @@ describe('TrendPanel', () => {
     expect(seriesData(wrapper)).toEqual([[[1, 10]]])
   })
 
-  it('opens diagnose analysis with a triple URL for a single selected item and stores deviceKpi', async () => {
+  it('opens diagnose analysis with a root URL for a single selected item and stores deviceKpi', async () => {
     const open = vi.fn(() => null)
     vi.stubGlobal('open', open)
     const wrapper = mount(TrendPanel, {
@@ -362,7 +362,7 @@ describe('TrendPanel', () => {
     await flushPromises()
     await wrapper.find('.trend-diagnose-btn').trigger('click')
     expect(open).toHaveBeenCalledWith(
-      '/ddsat/#/comprehensiveTrend/device/DEV?origin=pms&deviceCode=DEV&pointId=01&collectKpiId=KPI_0&st=10&et=20',
+      '/ddsat/?origin=pms&deviceCode=DEV&pointId=01&collectKpiId=KPI_0&st=10&et=20',
       '_blank',
     )
     const stored = JSON.parse(sessionStorage.getItem('deviceKpi') || '[]')
@@ -377,7 +377,7 @@ describe('TrendPanel', () => {
     vi.unstubAllGlobals()
   })
 
-  it('opens diagnose analysis with hash URL and stores deviceKpi with time window for multiple items', async () => {
+  it('opens diagnose analysis with root URL and stores deviceKpi with time window for multiple items', async () => {
     const open = vi.fn(() => null)
     vi.stubGlobal('open', open)
     const wrapper = mount(TrendPanel, {
@@ -395,7 +395,7 @@ describe('TrendPanel', () => {
     await flushPromises()
     await wrapper.find('.trend-diagnose-btn').trigger('click')
     expect(open).toHaveBeenCalledWith(
-      '/ddsat/#/comprehensiveTrend/device/DEV?origin=pms&deviceCode=DEV',
+      '/ddsat/?origin=pms&deviceCode=DEV',
       '_blank',
     )
     const stored = JSON.parse(sessionStorage.getItem('deviceKpi') || '[]')

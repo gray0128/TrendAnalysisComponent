@@ -41,24 +41,24 @@ describe('planDiagnoseJump', () => {
 })
 
 describe('diagnose URLs and deviceKpi', () => {
-  it('builds a triple URL for a single item with hash route and origin', () => {
+  it('builds a root URL for a single item with query before the hash route', () => {
     expect(buildSingleDiagnoseUrl('/ddsat/', item('DEV01', 1), 10, 20)).toBe(
-      '/ddsat/#/comprehensiveTrend/device/DEV01?origin=pms&deviceCode=DEV01&pointId=01&collectKpiId=KPI_1&st=10&et=20',
+      '/ddsat/?origin=pms&deviceCode=DEV01&pointId=01&collectKpiId=KPI_1&st=10&et=20',
     )
   })
 
-  it('builds a device URL for multiple items with hash route and origin', () => {
+  it('builds a root URL for multiple items with query before the hash route', () => {
     expect(buildMultiDiagnoseUrl('/ddsat/', 'DEV01')).toBe(
-      '/ddsat/#/comprehensiveTrend/device/DEV01?origin=pms&deviceCode=DEV01',
+      '/ddsat/?origin=pms&deviceCode=DEV01',
     )
   })
 
   it('handles base URL without trailing slash or with existing hash', () => {
     expect(buildMultiDiagnoseUrl('http://172.26.66.105/ddsat', 'DEV01')).toBe(
-      'http://172.26.66.105/ddsat/#/comprehensiveTrend/device/DEV01?origin=pms&deviceCode=DEV01',
+      'http://172.26.66.105/ddsat/?origin=pms&deviceCode=DEV01',
     )
     expect(buildMultiDiagnoseUrl('http://172.26.66.105/ddsat/#/comprehensiveTrend', 'DEV01')).toBe(
-      'http://172.26.66.105/ddsat/#/comprehensiveTrend/device/DEV01?origin=pms&deviceCode=DEV01',
+      'http://172.26.66.105/ddsat/?origin=pms&deviceCode=DEV01',
     )
   })
 

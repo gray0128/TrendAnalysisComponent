@@ -73,17 +73,21 @@ export function buildSingleDiagnoseUrl(
   startTimeMs: number,
   endTimeMs: number,
 ): string {
-  const base = cleanBaseUrl(baseUrl)
-  const device = encodeURIComponent(item.deviceCode)
-  const point = encodeURIComponent(item.pointId)
-  const kpi = encodeURIComponent(item.kpiId)
-  return `${base}/#/comprehensiveTrend/device/${device}?origin=pms&deviceCode=${device}&pointId=${point}&collectKpiId=${kpi}&st=${startTimeMs}&et=${endTimeMs}`
+  return buildDiagnoseUrl(cleanBaseUrl(baseUrl), {
+    origin: 'pms',
+    deviceCode: item.deviceCode,
+    pointId: item.pointId,
+    collectKpiId: item.kpiId,
+    st: String(startTimeMs),
+    et: String(endTimeMs),
+  })
 }
 
 export function buildMultiDiagnoseUrl(baseUrl: string, deviceCode: string): string {
-  const base = cleanBaseUrl(baseUrl)
-  const device = encodeURIComponent(deviceCode)
-  return `${base}/#/comprehensiveTrend/device/${device}?origin=pms&deviceCode=${device}`
+  return buildDiagnoseUrl(cleanBaseUrl(baseUrl), {
+    origin: 'pms',
+    deviceCode,
+  })
 }
 
 export function writeDeviceKpi(
