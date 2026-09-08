@@ -1,0 +1,27 @@
+name: Sync to CNB
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: sync-to-cnb
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Bare clone source repository
+        env:
+          SRC: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+        run: git clone --bare "$SRC" repo.git
+
+      - name: Push mirror to CNB
+        env:
+          DST: https://cnb:${{ secrets.CNB_TOKEN }}@cnb.cool/ifilfy/TrendAnalysisComponent.git
+        run: git -C repo.git push --mirror --quiet "$DST"
