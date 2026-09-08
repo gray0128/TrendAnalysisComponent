@@ -47,8 +47,8 @@ function isEnabled(row: any): boolean {
 
 function levelOf(row: any): ThresholdMark['level'] {
   const severity = Number(row?.severity)
-  if (severity === 3) return '危险'
-  if (severity === 2) return '警告'
+  if (severity >= 4) return '危险'
+  if (severity === 3) return '警告'
   return '注意'
 }
 

@@ -85,7 +85,7 @@ describe('injected request client', () => {
       calls.push({ url, init })
       return {
         code: 200,
-        result: [{ tag: 'D.01.k', enabled: '1', severity: 3, refValue1: 60 }],
+        result: [{ tag: 'D.01.k', enabled: '1', severity: 4, refValue1: 60 }],
       }
     })
     const marks = await fetchEnabledThresholds([

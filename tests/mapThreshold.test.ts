@@ -9,6 +9,22 @@ const item: TrendItemIdentity = {
 }
 
 describe('mapThresholdRows', () => {
+  it('maps threshold service severity 2, 3, and 4 to notice, warning, and danger', () => {
+    const marks = mapThresholdRows(
+      [
+        { enabled: 1, severity: 2, refValue1: 10 },
+        { enabled: 1, severity: 3, refValue1: 12 },
+        { enabled: 1, severity: 4, refValue1: 15 },
+      ],
+      item,
+    )
+    expect(marks.map(mark => ({ y: mark.y, level: mark.level }))).toEqual([
+      { y: 10, level: '注意' },
+      { y: 12, level: '警告' },
+      { y: 15, level: '危险' },
+    ])
+  })
+
   it('drops rows when enabled is not 1', () => {
     const marks = mapThresholdRows(
       [{ enabled: '0', severity: 3, refValue1: 60 }],
@@ -17,9 +33,9 @@ describe('mapThresholdRows', () => {
     expect(marks).toEqual([])
   })
 
-  it('maps enabled severity 3 refValue1 to one danger mark', () => {
+  it('maps enabled severity 4 refValue1 to one danger mark', () => {
     const marks = mapThresholdRows(
-      [{ enabled: '1', severity: 3, refValue1: 60 }],
+      [{ enabled: '1', severity: 4, refValue1: 60 }],
       item,
     )
     expect(marks).toEqual([
@@ -40,7 +56,7 @@ describe('mapThresholdRows', () => {
       item,
     )
     expect(marks.map(m => m.y)).toEqual([10, 60])
-    expect(marks.every(m => m.level === '警告')).toBe(true)
+    expect(marks.every(m => m.level === '注意')).toBe(true)
     expect(marks.every(m => m.condition === '介于[10,60]')).toBe(true)
     expect(marks.every(m => m.triple === 'DEV01·01·RMS')).toBe(true)
   })
@@ -53,9 +69,9 @@ describe('mapThresholdRows', () => {
     expect(marks).toEqual([
       {
         itemKey: 'DEV01*01*RMS',
-        level: '危险',
+        level: '警告',
         y: 45,
-        label: '危险',
+        label: '警告',
         triple: 'DEV01·电机负荷端2H·低频加速度RMS',
         condition: '大于 45',
       },
@@ -85,8 +101,8 @@ describe('mapThresholdRows', () => {
   it('keeps multiple enabled rules at the same level', () => {
     const marks = mapThresholdRows(
       [
-        { enabled: '1', severity: 3, refValue1: 40 },
-        { enabled: '1', severity: 3, refValue1: 80 },
+        { enabled: '1', severity: 4, refValue1: 40 },
+        { enabled: '1', severity: 4, refValue1: 80 },
       ],
       item,
     )

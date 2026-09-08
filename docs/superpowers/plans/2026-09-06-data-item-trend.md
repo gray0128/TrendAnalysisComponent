@@ -393,7 +393,7 @@ git commit -am "feat: map device KPI rows and drop signal items"
 - [ ] **Step 1: 写失败测试**
 
 1. `enabled: '0'` 不出现。
-2. `enabled: '1'`、`severity: 3`、`refValue1: 60` → 一条 `y: 60, level: '危险'`。
+2. `enabled: '1'`、`severity: 4`、`refValue1: 60` → 一条 `y: 60, level: '危险'`。
 3. `ruleCondition: '07'`、`refValue1: 10`、`refValue2: 60` → 两条 y。
 4. 同一等级两条启用规则 → 两条 mark。
 
@@ -401,7 +401,7 @@ git commit -am "feat: map device KPI rows and drop signal items"
 
 - [ ] **Step 3: 实现**
 
-`severity`：3 危险、2 警告、其他注意。数值解析与设备详情 `parseNumericValue` 相同思路（有限数字才画）。
+`severity`：4 危险、3 警告、2 注意。数值解析与设备详情 `parseNumericValue` 相同思路（有限数字才画）。
 
 - [ ] **Step 4: 跑测试确认通过**
 
