@@ -316,9 +316,9 @@ export function buildChartOption(input: BuildChartOptionInput) {
         showSymbol: false,
         symbol: 'none',
         smooth: false,
-        lineStyle: { width: 2 },
+        lineStyle: { width: 1.5 },
         areaStyle: { opacity: 0.08 },
-        emphasis: { focus: 'series', lineStyle: { width: 2.5 } },
+        emphasis: { focus: 'series', lineStyle: { width: 2 } },
         data: s.times.map((t, i) => [t, s.values[i] ?? null]),
       }
       if (matchedMarks.length > 0) {
